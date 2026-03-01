@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState, Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
 import { useChallengeStore } from '../store/challengeStore';
@@ -13,6 +14,30 @@ import { isGeminiConfigured } from '../api/geminiService';
 import { isStreamConfigured } from '../api/streamService';
 import StreamVideoCall from '../components/StreamVideoCall';
 import type { DetectionResult, ZoneId } from '../types';
+
+// Runtime Error Boundary directly on this screen to trap SDK crashes
+class StreamErrorBoundary extends Component<{ children: ReactNode, onError: () => void }, { hasError: boolean }> {
+    constructor(props: { children: ReactNode, onError: () => void }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(_: Error) {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        console.error("Caught Stream SDK crash:", error, errorInfo);
+        this.props.onError();
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return null;
+        }
+        return this.props.children;
+    }
+}
 
 // ═══════════════════════════════════════════
 // NPC Sprite Component
@@ -75,7 +100,7 @@ function NPCSprite({ zoneId, emotionState }: { zoneId: ZoneId; emotionState: str
                     fontFamily: 'var(--font-game)',
                     fontSize: 14,
                     color: zone.color,
-                    textShadow: `0 0 10px ${zone.color}66`,
+                    textShadow: `0 0 10px ${zone.color} 66`,
                     zIndex: 1,
                 }}
             >
@@ -163,7 +188,7 @@ function ChallengeHUD({ zoneId }: { zoneId: ZoneId }) {
         }
     }, [timer, challengeState, soundEnabled]);
 
-    const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} `;
 
     const challengeDescriptions: Record<string, string> = {
         jester: '🃏 Make the Jester laugh! Smile and be expressive.',
@@ -181,7 +206,7 @@ function ChallengeHUD({ zoneId }: { zoneId: ZoneId }) {
                     color: 'var(--white)',
                     padding: '10px 14px',
                     background: 'var(--bg-tertiary)',
-                    border: `1px solid ${zone.color}44`,
+                    border: `1px solid ${zone.color} 44`,
                     lineHeight: 1.6,
                 }}
             >
@@ -339,8 +364,17 @@ export default function NPCEncounter() {
 
     const zone = getZoneById(transitionZone || activeZone || '');
     const [started, setStarted] = useState(false);
+    const [streamFailed, setStreamFailed] = useState(false);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const riddlesRef = useRef(getRandomRiddles(3));
+
+    // ── Stable callbacks for StreamVideoCall (avoid hooks-in-JSX violation) ──
+    const handleStreamDialogue = useCallback((text: string) => setNPCDialogue(text), [setNPCDialogue]);
+    const handleStreamAgentJoined = useCallback(() => console.log('[Stream] NPC agent joined the call'), []);
+    const handleStreamError = useCallback((err: string) => {
+        console.warn('[Stream] Error:', err);
+        setStreamFailed(true);
+    }, []);
 
     // ── Voice Recognition ──
     const { isListening, transcript, isSupported, startListening, stopListening, clearTranscript } = useVoiceRecognition();
@@ -348,7 +382,7 @@ export default function NPCEncounter() {
     // ── Vision Loop ──
     const { processDetection } = useNPCReaction();
     const { videoRef, cameraReady, latestFrame, startCamera } = useVisionLoop({
-        enabled: started && challengeState === 'active',
+        enabled: (!isStreamConfigured() || streamFailed) && started && challengeState === 'active',
         intervalMs: 3000,
         onDetection: (detection: DetectionResult) => {
             setDetection(detection);
@@ -357,10 +391,12 @@ export default function NPCEncounter() {
         },
     });
 
-    // ── Start camera on mount ──
+    // ── Start camera when in local mode ──
     useEffect(() => {
-        startCamera();
-    }, [startCamera]);
+        if (!isStreamConfigured() || streamFailed) {
+            startCamera();
+        }
+    }, [startCamera, streamFailed]);
 
     // ── Start Challenge ──
     const handleStart = useCallback(() => {
@@ -497,11 +533,10 @@ export default function NPCEncounter() {
                 />
             )}
 
-            {/* ═══ Left: NPC Zone (55%) ═══ */}
+            {/* ═══ Left: NPC Zone ═══ */}
             <div
+                className="npc-zone-left"
                 style={{
-                    width: '55%',
-                    height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
                     padding: 24,
@@ -511,7 +546,7 @@ export default function NPCEncounter() {
                 }}
             >
                 {/* NPC Sprite */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '30vh' }}>
                     <NPCSprite zoneId={zone.id} emotionState={npcEmotionState || 'idle'} />
                 </div>
 
@@ -523,16 +558,14 @@ export default function NPCEncounter() {
                 />
             </div>
 
-            {/* ═══ Right: HUD Zone (45%) ═══ */}
+            {/* ═══ Right: HUD Zone ═══ */}
             <div
+                className="npc-zone-right"
                 style={{
-                    width: '45%',
-                    height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
                     padding: 24,
                     gap: 16,
-                    borderLeft: `1px solid ${zone.color}33`,
                     position: 'relative',
                     zIndex: 1,
                     overflow: 'auto',
@@ -582,7 +615,7 @@ export default function NPCEncounter() {
                 <div style={{ marginTop: 'auto', paddingTop: 12 }}>
 
                     {/* Voice Recognition UI (only in fallback mode) */}
-                    {!isStreamConfigured() && started && challengeState === 'active' && isSupported && (
+                    {(!isStreamConfigured() || streamFailed) && started && challengeState === 'active' && isSupported && (
                         <div style={{ marginBottom: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
                             <motion.button
                                 onMouseDown={startListening}
@@ -627,19 +660,21 @@ export default function NPCEncounter() {
                     )}
 
                     {/* Stream Video Mode */}
-                    {isStreamConfigured() ? (
+                    {isStreamConfigured() && !streamFailed ? (
                         <>
-                            <div className="webcam-mirror" style={{ borderColor: zone.color, boxShadow: `0 0 10px ${zone.color}44` }}>
-                                <StreamVideoCall
-                                    npcId={zone.id as ZoneId}
-                                    npcName={zone.npcName}
-                                    npcColor={zone.color}
-                                    playerName={playerName}
-                                    onDialogue={(text) => setNPCDialogue(text)}
-                                    onAgentJoined={() => console.log('[Stream] NPC agent joined the call')}
-                                    onError={(err) => console.warn('[Stream] Error:', err)}
-                                />
-                            </div>
+                            <StreamErrorBoundary onError={() => setStreamFailed(true)}>
+                                <div className="webcam-mirror" style={{ borderColor: zone.color, boxShadow: `0 0 10px ${zone.color}44` }}>
+                                    <StreamVideoCall
+                                        npcId={zone.id as ZoneId}
+                                        npcName={zone.npcName}
+                                        npcColor={zone.color}
+                                        playerName={playerName}
+                                        onDialogue={handleStreamDialogue}
+                                        onAgentJoined={handleStreamAgentJoined}
+                                        onError={handleStreamError}
+                                    />
+                                </div>
+                            </StreamErrorBoundary>
                             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--dark-gray)', marginTop: 4 }}>
                                 Magic Mirror — 🔴 LIVE via Vision Agents
                             </div>

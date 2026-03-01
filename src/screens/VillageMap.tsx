@@ -45,11 +45,11 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
         startZoneTransition(zone.id);
     };
 
-    // Better radial positioning for map feel
+    // Isometric/radial positioning radiating from the center
     const positions = [
-        { left: '22%', top: '42%' },   // Jester - Tavern (left)
-        { left: '50%', top: '25%' },   // Sage - Tower (top center)
-        { left: '78%', top: '48%' },   // Shadow - Forest (right)
+        { left: '25%', top: '55%' },   // Jester - Tavern (bottom left)
+        { left: '50%', top: '22%' },   // Sage - Tower (top center)
+        { left: '75%', top: '55%' },   // Shadow - Forest (bottom right)
     ];
 
     return (
@@ -346,23 +346,61 @@ export default function VillageMap() {
                 overflow: 'hidden',
             }}
         >
-            {/* ── Deep space background ── */}
+            {/* ── Retro Synthwave Background ── */}
             <div style={{
                 position: 'absolute',
                 inset: 0,
-                background: `
-                    radial-gradient(ellipse at 30% 20%, #0D1B2A 0%, transparent 50%),
-                    radial-gradient(ellipse at 70% 70%, #1B0D2A 0%, transparent 50%),
-                    radial-gradient(ellipse at 50% 50%, #0A1628 0%, transparent 70%),
-                    var(--bg-primary)
-                `,
+                background: 'linear-gradient(to bottom, #050510 0%, #1a0b2e 55%, #050510 100%)',
                 pointerEvents: 'none',
             }} />
 
-            {/* ── Animated stars ── */}
-            {Array.from({ length: 60 }).map((_, i) => (
-                <Star key={i} delay={i * 0.15} />
-            ))}
+            {/* Glowing Horizon Line */}
+            <div style={{
+                position: 'absolute',
+                top: '55%',
+                left: 0,
+                right: 0,
+                height: 2,
+                background: 'rgba(0, 212, 255, 0.5)',
+                boxShadow: '0 0 20px 5px rgba(0, 212, 255, 0.4), 0 0 40px 10px rgba(123, 47, 190, 0.4)',
+                zIndex: 1,
+            }} />
+
+            {/* Bottom Moving Grid */}
+            <div style={{
+                position: 'absolute',
+                top: '55%',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                overflow: 'hidden',
+                perspective: '1000px',
+                zIndex: 1,
+            }}>
+                <motion.div
+                    animate={{ backgroundPositionY: [0, 60] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}
+                    style={{
+                        position: 'absolute',
+                        inset: '-100% -100% 0 -100%',
+                        backgroundImage: `
+                            linear-gradient(90deg, rgba(0, 212, 255, 0.15) 1px, transparent 1px),
+                            linear-gradient(rgba(0, 212, 255, 0.15) 1px, transparent 1px)
+                        `,
+                        backgroundSize: '60px 60px',
+                        transform: 'rotateX(75deg) translateZ(0)',
+                        transformOrigin: 'top center',
+                        pointerEvents: 'none',
+                    }}
+                />
+            </div>
+
+            {/* ── Animated stars (Top Half) ── */}
+            <div style={{ position: 'absolute', inset: '0 0 45% 0', zIndex: 1, overflow: 'hidden' }}>
+                {Array.from({ length: 80 }).map((_, i) => (
+                    <Star key={i} delay={i * 0.1} />
+                ))}
+            </div>
 
             {/* ── Nebula glow accents ── */}
             <motion.div
@@ -370,11 +408,12 @@ export default function VillageMap() {
                 transition={{ type: 'spring', stiffness: 50, damping: 20 }}
                 style={{
                     position: 'absolute',
-                    left: '15%', top: '30%',
-                    width: 300, height: 300,
+                    left: '20%', top: '25%',
+                    width: 350, height: 350,
                     borderRadius: '50%',
-                    background: 'radial-gradient(circle, #FFB8000A, transparent 70%)',
+                    background: 'radial-gradient(circle, #7B2FBE1A, transparent 70%)',
                     filter: 'blur(60px)',
+                    zIndex: 2,
                     pointerEvents: 'none',
                 }}
             />
@@ -383,24 +422,12 @@ export default function VillageMap() {
                 transition={{ type: 'spring', stiffness: 40, damping: 20 }}
                 style={{
                     position: 'absolute',
-                    right: '10%', top: '20%',
-                    width: 250, height: 250,
+                    right: '20%', top: '20%',
+                    width: 300, height: 300,
                     borderRadius: '50%',
-                    background: 'radial-gradient(circle, #FF44440A, transparent 70%)',
+                    background: 'radial-gradient(circle, #00D4FF1A, transparent 70%)',
                     filter: 'blur(50px)',
-                    pointerEvents: 'none',
-                }}
-            />
-            <motion.div
-                animate={{ x: mousePos.x * -2, y: mousePos.y * -2 }}
-                transition={{ type: 'spring', stiffness: 60, damping: 20 }}
-                style={{
-                    position: 'absolute',
-                    left: '40%', top: '10%',
-                    width: 200, height: 200,
-                    borderRadius: '50%',
-                    background: 'radial-gradient(circle, #00D4FF0B, transparent 70%)',
-                    filter: 'blur(40px)',
+                    zIndex: 2,
                     pointerEvents: 'none',
                 }}
             />
@@ -487,29 +514,30 @@ export default function VillageMap() {
                     </linearGradient>
                 </defs>
 
-                {/* Tavern → Tower */}
-                <line x1="22%" y1="42%" x2="50%" y2="25%" stroke="url(#path-grad-1)" strokeWidth="1.5" strokeDasharray="6 6">
+                {/* Center -> Jester */}
+                <line x1="50%" y1="52%" x2="25%" y2="55%" stroke="url(#path-grad-1)" strokeWidth="1.5" strokeDasharray="6 6">
                     <animate attributeName="stroke-dashoffset" values="0;12" dur="2s" repeatCount="indefinite" />
                 </line>
 
-                {/* Tower → Forest */}
-                <line x1="50%" y1="25%" x2="78%" y2="48%" stroke="url(#path-grad-2)" strokeWidth="1.5" strokeDasharray="6 6">
+                {/* Center -> Sage */}
+                <line x1="50%" y1="52%" x2="50%" y2="22%" stroke="url(#path-grad-2)" strokeWidth="1.5" strokeDasharray="6 6">
                     <animate attributeName="stroke-dashoffset" values="0;12" dur="2s" repeatCount="indefinite" />
                 </line>
 
-                {/* Tavern → Forest (subtle) */}
-                <line x1="22%" y1="42%" x2="78%" y2="48%" stroke="url(#path-grad-3)" strokeWidth="1" strokeDasharray="4 8">
-                    <animate attributeName="stroke-dashoffset" values="0;12" dur="3s" repeatCount="indefinite" />
+                {/* Center -> Shadow */}
+                <line x1="50%" y1="52%" x2="75%" y2="55%" stroke="url(#path-grad-3)" strokeWidth="1.5" strokeDasharray="6 6">
+                    <animate attributeName="stroke-dashoffset" values="0;12" dur="2s" repeatCount="indefinite" />
                 </line>
 
-                {/* Center village node */}
-                <circle cx="50%" cy="55%" r="4" fill="#7B2FBE" opacity="0.5">
-                    <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite" />
+                {/* Center village hub node */}
+                <circle cx="50%" cy="52%" r="6" fill="#7B2FBE" opacity="0.8">
+                    <animate attributeName="opacity" values="0.4;1;0.4" dur="3s" repeatCount="indefinite" />
+                    <animate attributeName="r" values="5;7;5" dur="3s" repeatCount="indefinite" />
                 </circle>
 
-                {/* Village label */}
-                <text x="50%" y="62%" textAnchor="middle" fill="#7B2FBE" opacity="0.4" fontFamily="Share Tech Mono" fontSize="10">
-                    VILLAGE CENTER
+                {/* Hub label */}
+                <text x="50%" y="55%" textAnchor="middle" fill="#7B2FBE" opacity="0.6" fontFamily="var(--font-mono)" fontSize="10">
+                    HUB
                 </text>
             </svg>
 

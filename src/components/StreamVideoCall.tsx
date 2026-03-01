@@ -6,6 +6,9 @@
 //
 // The NPC agent (Python backend) joins the same call and processes
 // the player's video/audio using Gemini Realtime.
+//
+// FALLBACK: If Stream fails at any point (missing token, connection error,
+// agent timeout), fires `onError` so the parent can switch to local Gemini mode.
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
@@ -15,6 +18,7 @@ import {
     useCallStateHooks,
 } from '@stream-io/video-react-sdk';
 import type { User } from '@stream-io/video-react-sdk';
+import { fetchStreamToken } from '../api/tokenProvider';
 import '@stream-io/video-react-sdk/dist/css/styles.css';
 import type { ZoneId } from '../types';
 
@@ -34,28 +38,44 @@ function CallUI({
     npcColor,
     onDialogue,
     onAgentJoined,
+    onError,
 }: {
     npcName: string;
     npcColor: string;
     onDialogue: (text: string) => void;
     onAgentJoined: () => void;
+    onError: (error: string) => void;
 }) {
     const { useParticipants, useCallCallingState } = useCallStateHooks();
     const participants = useParticipants();
     const callingState = useCallCallingState();
     const hasNotifiedRef = useRef(false);
+    const errorFiredRef = useRef(false);
 
-    // Check if the NPC agent has joined
+    // If agent doesn't join within 10 seconds of call joining, trigger error fallback
     useEffect(() => {
-        const agentParticipant = participants.find(
-            (p) => p.userId.startsWith('npc-')
-        );
-        if (agentParticipant && !hasNotifiedRef.current) {
-            hasNotifiedRef.current = true;
-            onAgentJoined();
-            onDialogue(`${npcName} has entered the realm...`);
-        }
-    }, [participants, npcName, onAgentJoined, onDialogue]);
+        if (callingState !== 'joined') return;
+        if (errorFiredRef.current) return;
+
+        const timeoutId = setTimeout(() => {
+            if (errorFiredRef.current) return;
+            errorFiredRef.current = true;
+            onError('Agent failed to join. The Vision Quest python backend seems to be offline.');
+        }, 10_000);
+
+        return () => {
+            clearTimeout(timeoutId);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [callingState]);
+
+    // Detect agent joining
+    const agentParticipant = participants.find((p) => p.userId.startsWith('npc-'));
+    if (agentParticipant && !hasNotifiedRef.current) {
+        hasNotifiedRef.current = true;
+        onAgentJoined();
+        onDialogue(`${npcName} has entered the realm...`);
+    }
 
     // Find user's own video track
     const localParticipant = participants.find(
@@ -157,6 +177,7 @@ export default function StreamVideoCall({
     const [client, setClient] = useState<StreamVideoClient | null>(null);
     const [call, setCall] = useState<any>(null);
     const [isConnecting, setIsConnecting] = useState(true);
+    const errorFiredRef = useRef(false);
 
     const apiKey = import.meta.env.VITE_STREAM_API_KEY || '';
     const callIdRef = useRef(
@@ -165,12 +186,21 @@ export default function StreamVideoCall({
 
     const setupCall = useCallback(async () => {
         if (!apiKey) {
-            onError('Stream API key not configured');
+            if (!errorFiredRef.current) {
+                errorFiredRef.current = true;
+                onError('Stream API key not configured');
+            }
             return;
         }
 
         try {
             const userId = `player-${playerName.toLowerCase().replace(/\s+/g, '-')}`;
+
+            // Pre-fetch the token BEFORE creating the client
+            const token = await fetchStreamToken(userId);
+            if (!token) {
+                throw new Error('Could not obtain a valid Stream token. Token server may be down.');
+            }
 
             const user: User = {
                 id: userId,
@@ -180,7 +210,7 @@ export default function StreamVideoCall({
             const videoClient = StreamVideoClient.getOrCreateInstance({
                 apiKey,
                 user,
-                tokenProvider: async () => '',
+                token,  // Use the pre-fetched token directly instead of tokenProvider
             });
 
             const videoCall = videoClient.call('default', callIdRef.current);
@@ -188,8 +218,8 @@ export default function StreamVideoCall({
             await videoCall.join({ create: true });
 
             // Enable camera and microphone
-            await videoCall.camera.enable();
-            await videoCall.microphone.enable();
+            try { await videoCall.camera.enable(); } catch { /* Camera might be denied */ }
+            try { await videoCall.microphone.enable(); } catch { /* Mic might be denied */ }
 
             setClient(videoClient);
             setCall(videoCall);
@@ -205,9 +235,12 @@ export default function StreamVideoCall({
             );
         } catch (error: any) {
             console.error('[Stream] Connection error:', error);
-            onError(
-                `Failed to connect: ${error.message || 'Unknown error'}. Falling back to local mode.`
-            );
+            if (!errorFiredRef.current) {
+                errorFiredRef.current = true;
+                onError(
+                    `Failed to connect: ${error.message || 'Unknown error'}. Falling back to local mode.`
+                );
+            }
         }
     }, [apiKey, npcId, playerName, npcName, onDialogue, onError]);
 
@@ -215,13 +248,17 @@ export default function StreamVideoCall({
         setupCall();
 
         return () => {
-            // Cleanup on unmount
-            if (call) {
-                call.leave().catch(console.error);
-            }
-            if (client) {
-                client.disconnectUser?.().catch(console.error);
-            }
+            // Cleanup on unmount — wrap in try/catch so SDK crashes don't propagate
+            try {
+                if (call) {
+                    call.leave().catch(() => { });
+                }
+            } catch { /* swallow */ }
+            try {
+                if (client) {
+                    client.disconnectUser?.().catch(() => { });
+                }
+            } catch { /* swallow */ }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -254,6 +291,7 @@ export default function StreamVideoCall({
                     npcColor={npcColor}
                     onDialogue={onDialogue}
                     onAgentJoined={onAgentJoined}
+                    onError={onError}
                 />
             </StreamCall>
         </StreamVideo>
