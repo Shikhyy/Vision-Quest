@@ -45,12 +45,16 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
         startZoneTransition(zone.id);
     };
 
-    // Isometric/radial positioning radiating from the center
+    // Isometric/radial positioning for a premium map feel
+    // Anchored relative to the center and the horizon line (which is at 60% height)
+    // Tower is in the distance (top), Tavern/Forest are in the foreground (bottom)
     const positions = [
-        { left: '25%', top: '55%' },   // Jester - Tavern (bottom left)
-        { left: '50%', top: '22%' },   // Sage - Tower (top center)
-        { left: '75%', top: '55%' },   // Shadow - Forest (bottom right)
+        { left: '30%', top: '70%', zIndex: 30 }, // Jester - Tavern (foreground left)
+        { left: '50%', top: '45%', zIndex: 10 }, // Sage - Tower (background center)
+        { left: '70%', top: '70%', zIndex: 30 }, // Shadow - Forest (foreground right)
     ];
+
+    const currentPos = positions[index];
 
     return (
         <motion.div
@@ -62,32 +66,51 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
             onMouseLeave={() => setHovered(false)}
             style={{
                 position: 'absolute',
-                ...positions[index],
+                left: currentPos.left,
+                top: currentPos.top,
                 transform: 'translate(-50%, -50%)',
                 cursor: isUnlocked ? 'pointer' : 'not-allowed',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 10,
-                opacity: isUnlocked ? 1 : 0.35,
-                zIndex: 10,
+                gap: 12,
+                opacity: isUnlocked ? 1 : 0.4,
+                zIndex: currentPos.zIndex,
+                width: 160, // Fixed width prevents text from making the container off-center
             }}
         >
+            {/* Connection Lines (only render for Tavern/Forest connecting to Tower) */}
+            {index !== 1 && (
+                <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    width: '150%',
+                    height: 2,
+                    background: `linear-gradient(90deg, transparent, ${zone.color}44, transparent)`,
+                    transform: `translate(-50%, -50%) rotate(${index === 0 ? '-35deg' : '35deg'})`,
+                    transformOrigin: index === 0 ? 'top right' : 'top left',
+                    zIndex: -1,
+                    pointerEvents: 'none',
+                }} />
+            )}
+
             {/* Glow ring behind node */}
             <motion.div
                 animate={{
                     boxShadow: hovered && isUnlocked
-                        ? `0 0 30px ${zone.color}88, 0 0 60px ${zone.color}44, 0 0 90px ${zone.color}22`
-                        : `0 0 15px ${zone.color}44, 0 0 30px ${zone.color}22`,
+                        ? `0 0 40px ${zone.color}AA, 0 0 80px ${zone.color}66, 0 0 120px ${zone.color}33`
+                        : `0 0 20px ${zone.color}66, 0 0 40px ${zone.color}33`,
+                    opacity: hovered && isUnlocked ? 1 : 0.8,
                 }}
                 transition={{ duration: 0.3 }}
                 style={{
                     position: 'absolute',
-                    top: -8,
+                    top: 10,
                     left: '50%',
                     transform: 'translateX(-50%)',
-                    width: 100,
-                    height: 100,
+                    width: 110,
+                    height: 110,
                     borderRadius: '50%',
                     pointerEvents: 'none',
                 }}
@@ -95,23 +118,25 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
 
             {/* Zone Icon Node */}
             <motion.div
-                whileHover={isUnlocked ? { scale: 1.12, y: -6 } : {}}
-                whileTap={isUnlocked ? { scale: 0.93 } : {}}
+                whileHover={isUnlocked ? { scale: 1.15, y: -8 } : {}}
+                whileTap={isUnlocked ? { scale: 0.95 } : {}}
                 style={{
-                    width: 88,
-                    height: 88,
-                    background: `radial-gradient(circle at 40% 35%, ${zone.color}33, ${zone.color}0A, var(--bg-secondary))`,
+                    width: 90,
+                    height: 90,
+                    background: `radial-gradient(circle at 40% 35%, ${zone.color}44, ${zone.color}11, var(--bg-secondary))`,
                     border: `3px solid ${isCompleted ? 'var(--green)' : zone.color}`,
                     borderRadius: isCompleted ? '16px' : '50%',
                     boxShadow: isCompleted
-                        ? '0 0 20px #00FF8844, 0 0 40px #00FF8822, inset 0 0 15px #00FF8811'
-                        : `0 0 20px ${zone.color}44, 0 0 40px ${zone.color}22, inset 0 0 15px ${zone.color}11`,
+                        ? '0 0 25px #00FF8866, 0 0 50px #00FF8833, inset 0 0 20px #00FF8822'
+                        : `0 0 25px ${zone.color}66, 0 0 50px ${zone.color}33, inset 0 0 20px ${zone.color}22`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 38,
+                    fontSize: 42,
                     position: 'relative',
                     transition: 'border-radius 0.3s, border-color 0.3s',
+                    zIndex: 2,
+                    backdropFilter: 'blur(4px)',
                 }}
                 className={isUnlocked && !isCompleted ? 'animate-pulse-neon' : ''}
             >
@@ -122,22 +147,23 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
                     <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 300 }}
+                        transition={{ type: 'spring', stiffness: 300, delay: 0.2 }}
                         style={{
                             position: 'absolute',
-                            top: -8,
-                            right: -8,
-                            width: 24,
-                            height: 24,
+                            top: -10,
+                            right: -10,
+                            width: 28,
+                            height: 28,
                             background: 'var(--green)',
                             borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: 14,
+                            fontSize: 16,
                             fontWeight: 'bold',
                             color: 'var(--bg-primary)',
-                            boxShadow: '0 0 10px #00FF88',
+                            boxShadow: '0 0 15px #00FF88',
+                            border: '2px solid var(--bg-primary)',
                         }}
                     >
                         ✓
@@ -151,12 +177,12 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
                             position: 'absolute',
                             inset: 0,
                             borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.75)',
+                            background: 'rgba(0,0,0,0.8)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: 28,
-                            backdropFilter: 'blur(2px)',
+                            fontSize: 32,
+                            backdropFilter: 'blur(4px)',
                         }}
                     >
                         🔒
@@ -164,66 +190,85 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
                 )}
             </motion.div>
 
-            {/* Zone Name */}
-            <div
-                style={{
-                    fontFamily: 'var(--font-game)',
-                    fontSize: 9,
-                    color: zone.color,
-                    textAlign: 'center',
-                    textShadow: `0 0 12px ${zone.color}88`,
-                    lineHeight: 1.6,
-                    maxWidth: 120,
-                    letterSpacing: 1,
-                }}
-            >
-                {zone.name}
-            </div>
+            {/* Labels Container - perfectly centered */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, zIndex: 2 }}>
+                {/* Zone Name */}
+                <div
+                    style={{
+                        fontFamily: 'var(--font-game)',
+                        fontSize: 10,
+                        color: zone.color,
+                        textAlign: 'center',
+                        textShadow: `0 0 15px ${zone.color}`,
+                        lineHeight: 1.4,
+                        letterSpacing: 1.5,
+                        textTransform: 'uppercase',
+                    }}
+                >
+                    {zone.name}
+                </div>
 
-            {/* NPC Name */}
-            <div
-                style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 10,
-                    color: 'var(--gray)',
-                    textAlign: 'center',
-                }}
-            >
-                {zone.npcName}
-            </div>
+                {/* NPC Name */}
+                <div
+                    style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 11,
+                        color: 'var(--gray)',
+                        letterSpacing: 2,
+                        textTransform: 'uppercase',
+                        opacity: 0.8,
+                    }}
+                >
+                    {zone.npcName}
+                </div>
 
-            {/* Stats */}
-            <div
-                style={{
-                    display: 'flex',
-                    gap: 12,
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 10,
-                    color: 'var(--dark-gray)',
-                }}
-            >
-                <span style={{ color: 'var(--gold)' }}>{zone.xpReward} XP</span>
-                <span>{'★'.repeat(zone.difficulty)}{'☆'.repeat(5 - zone.difficulty)}</span>
+                {/* Stats */}
+                <div
+                    style={{
+                        display: 'flex',
+                        gap: 12,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 11,
+                        color: 'var(--dark-gray)',
+                        marginTop: 4,
+                        background: 'rgba(0,0,0,0.5)',
+                        padding: '4px 12px',
+                        borderRadius: 12,
+                        border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                >
+                    <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{zone.xpReward} XP</span>
+                    <span style={{ color: 'var(--gray)' }}>{'★'.repeat(zone.difficulty)}{'☆'.repeat(5 - zone.difficulty)}</span>
+                </div>
             </div>
 
             {/* Hover tooltip */}
             {hovered && isUnlocked && (
                 <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
                     style={{
+                        position: 'absolute',
+                        top: '100%',
+                        marginTop: 15,
                         fontFamily: 'var(--font-mono)',
-                        fontSize: 10,
-                        color: zone.color,
-                        background: 'rgba(10,10,10,0.9)',
-                        border: `1px solid ${zone.color}44`,
-                        padding: '6px 12px',
-                        maxWidth: 180,
+                        fontSize: 11,
+                        color: 'var(--white)',
+                        background: 'rgba(10,10,10,0.95)',
+                        border: `1px solid ${zone.color}66`,
+                        boxShadow: `0 4px 20px rgba(0,0,0,0.5), 0 0 15px ${zone.color}33`,
+                        padding: '10px 16px',
+                        width: 200,
                         textAlign: 'center',
-                        lineHeight: 1.6,
+                        lineHeight: 1.5,
+                        borderRadius: 8,
+                        zIndex: 50,
                     }}
                 >
-                    {isCompleted ? '✓ Completed — Replay?' : zone.description}
+                    <div style={{ color: zone.color, fontWeight: 'bold', marginBottom: 4 }}>
+                        {isCompleted ? '✓ COMPLETED' : 'AWAITING HERO'}
+                    </div>
+                    {isCompleted ? 'The realm is safe... for now. Revisit this memory?' : zone.description}
                 </motion.div>
             )}
         </motion.div>
@@ -357,7 +402,7 @@ export default function VillageMap() {
             {/* Glowing Horizon Line */}
             <div style={{
                 position: 'absolute',
-                top: '55%',
+                top: '45%', // Aligns with the Tower node
                 left: 0,
                 right: 0,
                 height: 2,
@@ -369,7 +414,7 @@ export default function VillageMap() {
             {/* Bottom Moving Grid */}
             <div style={{
                 position: 'absolute',
-                top: '55%',
+                top: '45%',
                 left: 0,
                 right: 0,
                 bottom: 0,
@@ -396,7 +441,7 @@ export default function VillageMap() {
             </div>
 
             {/* ── Animated stars (Top Half) ── */}
-            <div style={{ position: 'absolute', inset: '0 0 45% 0', zIndex: 1, overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', inset: '0 0 55% 0', zIndex: 1, overflow: 'hidden' }}>
                 {Array.from({ length: 80 }).map((_, i) => (
                     <Star key={i} delay={i * 0.1} />
                 ))}
@@ -456,21 +501,23 @@ export default function VillageMap() {
                 transition={{ delay: 0.2 }}
                 style={{
                     position: 'absolute',
-                    top: 28,
+                    top: 40,
                     left: '50%',
                     transform: 'translateX(-50%)',
                     textAlign: 'center',
                     zIndex: 20,
+                    pointerEvents: 'none',
                 }}
             >
                 <h2
                     style={{
                         fontFamily: 'var(--font-game)',
-                        fontSize: 18,
+                        fontSize: 24,
                         background: 'linear-gradient(135deg, #00D4FF, #7B2FBE)',
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
-                        letterSpacing: 4,
+                        letterSpacing: 8,
+                        textShadow: '0 0 20px rgba(0, 212, 255, 0.3)',
                     }}
                 >
                     THE VILLAGE
@@ -478,68 +525,17 @@ export default function VillageMap() {
                 <p
                     style={{
                         fontFamily: 'var(--font-mono)',
-                        fontSize: 11,
+                        fontSize: 12,
                         color: 'var(--gray)',
-                        marginTop: 6,
-                        letterSpacing: 2,
+                        marginTop: 8,
+                        letterSpacing: 4,
+                        textTransform: 'uppercase',
+                        opacity: 0.8,
                     }}
                 >
-                    Choose your quest, adventurer
+                    Choose your destiny
                 </p>
             </motion.div>
-
-            {/* ── Connecting paths (animated dashed lines) ── */}
-            <svg
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 5,
-                }}
-            >
-                <defs>
-                    <linearGradient id="path-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#FFB800" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#00D4FF" stopOpacity="0.3" />
-                    </linearGradient>
-                    <linearGradient id="path-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#00D4FF" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#FF4444" stopOpacity="0.3" />
-                    </linearGradient>
-                    <linearGradient id="path-grad-3" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#FFB800" stopOpacity="0.15" />
-                        <stop offset="100%" stopColor="#FF4444" stopOpacity="0.15" />
-                    </linearGradient>
-                </defs>
-
-                {/* Center -> Jester */}
-                <line x1="50%" y1="52%" x2="25%" y2="55%" stroke="url(#path-grad-1)" strokeWidth="1.5" strokeDasharray="6 6">
-                    <animate attributeName="stroke-dashoffset" values="0;12" dur="2s" repeatCount="indefinite" />
-                </line>
-
-                {/* Center -> Sage */}
-                <line x1="50%" y1="52%" x2="50%" y2="22%" stroke="url(#path-grad-2)" strokeWidth="1.5" strokeDasharray="6 6">
-                    <animate attributeName="stroke-dashoffset" values="0;12" dur="2s" repeatCount="indefinite" />
-                </line>
-
-                {/* Center -> Shadow */}
-                <line x1="50%" y1="52%" x2="75%" y2="55%" stroke="url(#path-grad-3)" strokeWidth="1.5" strokeDasharray="6 6">
-                    <animate attributeName="stroke-dashoffset" values="0;12" dur="2s" repeatCount="indefinite" />
-                </line>
-
-                {/* Center village hub node */}
-                <circle cx="50%" cy="52%" r="6" fill="#7B2FBE" opacity="0.8">
-                    <animate attributeName="opacity" values="0.4;1;0.4" dur="3s" repeatCount="indefinite" />
-                    <animate attributeName="r" values="5;7;5" dur="3s" repeatCount="indefinite" />
-                </circle>
-
-                {/* Hub label */}
-                <text x="50%" y="55%" textAnchor="middle" fill="#7B2FBE" opacity="0.6" fontFamily="var(--font-mono)" fontSize="10">
-                    HUB
-                </text>
-            </svg>
 
             {/* ── Zone Nodes ── */}
             {ZONES.map((zone, i) => (
