@@ -58,8 +58,8 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0, y: 30 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.5 + index * 0.2, type: 'spring', stiffness: 150 }}
             onClick={handleClick}
             onMouseEnter={() => setHovered(true)}
@@ -68,130 +68,136 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
                 position: 'absolute',
                 left: currentPos.left,
                 top: currentPos.top,
-                transform: 'translate(-50%, -50%)',
                 cursor: isUnlocked ? 'pointer' : 'not-allowed',
+                opacity: isUnlocked ? 1 : 0.4,
+                zIndex: currentPos.zIndex,
+            }}
+        >
+            {/* Contains the centered orb */}
+            <div style={{ position: 'absolute', left: 0, top: 0, width: 0, height: 0 }}>
+                {/* Glow ring behind node */}
+                <motion.div
+                    animate={{
+                        boxShadow: hovered && isUnlocked
+                            ? `0 0 60px ${zone.color}AA, 0 0 100px ${zone.color}66`
+                            : `0 0 40px ${zone.color}66, 0 0 70px ${zone.color}33`,
+                        opacity: hovered && isUnlocked ? 1 : 0.8,
+                    }}
+                    transition={{ duration: 0.3 }}
+                    style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: 110,
+                        height: 110,
+                        borderRadius: '50%',
+                        pointerEvents: 'none',
+                        zIndex: 0,
+                    }}
+                />
+
+                {/* Zone Icon Node (Floating Orb) */}
+                <motion.div
+                    animate={{ y: isUnlocked ? [0, -6, 0] : 0 }}
+                    transition={{ duration: 3 + index * 0.5, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        zIndex: 2,
+                    }}
+                >
+                    <motion.div
+                        whileHover={isUnlocked ? { scale: 1.15 } : {}}
+                        whileTap={isUnlocked ? { scale: 0.95 } : {}}
+                        style={{
+                            width: 96,
+                            height: 96,
+                            background: isCompleted
+                                ? `radial-gradient(circle at 30% 30%, rgba(0,255,136,0.25), rgba(0,255,136,0.05), rgba(5,5,16,0.9))`
+                                : `radial-gradient(circle at 30% 30%, ${zone.color}40, ${zone.color}05, rgba(5,5,16,0.9))`,
+                            border: `3px solid ${isCompleted ? 'var(--green)' : zone.color}`,
+                            borderRadius: isCompleted ? '16px' : '50%',
+                            boxShadow: isCompleted
+                                ? '0 0 30px rgba(0,255,136,0.6), inset 0 0 20px rgba(0,255,136,0.3)'
+                                : `0 0 30px ${zone.color}88, inset 0 0 20px ${zone.color}44`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 46,
+                            position: 'relative',
+                            transition: 'border-radius 0.3s, border-color 0.3s, background 0.3s, box-shadow 0.3s',
+                            backdropFilter: 'blur(10px)',
+                        }}
+                        className={isUnlocked && !isCompleted ? 'animate-pulse-neon' : ''}
+                    >
+                        {zone.icon}
+
+                        {/* Completion badge */}
+                        {isCompleted && (
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', stiffness: 300, delay: 0.2 }}
+                                style={{
+                                    position: 'absolute',
+                                    top: -8,
+                                    right: -8,
+                                    width: 28,
+                                    height: 28,
+                                    background: 'var(--green)',
+                                    borderRadius: '50%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 16,
+                                    fontWeight: 'bold',
+                                    color: 'var(--bg-primary)',
+                                    boxShadow: '0 0 15px #00FF88',
+                                    border: '2px solid var(--bg-primary)',
+                                }}
+                            >
+                                ✓
+                            </motion.div>
+                        )}
+
+                        {/* Lock overlay */}
+                        {!isUnlocked && (
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    borderRadius: '50%',
+                                    background: 'rgba(5,5,16,0.85)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 32,
+                                    backdropFilter: 'blur(4px)',
+                                }}
+                            >
+                                🔒
+                            </div>
+                        )}
+                    </motion.div>
+                </motion.div>
+            </div>
+
+            {/* Labels Container - hanging below the orb */}
+            <div style={{
+                position: 'absolute',
+                top: 60, // Starts below the 96px orb reliably
+                left: '50%',
+                transform: 'translateX(-50%)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 12,
-                opacity: isUnlocked ? 1 : 0.4,
-                zIndex: currentPos.zIndex,
-                width: 160, // Fixed width prevents text from making the container off-center
-            }}
-        >
-            {/* Connection Lines (only render for Tavern/Forest connecting to Tower) */}
-            {index !== 1 && (
-                <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    width: '150%',
-                    height: 2,
-                    background: `linear-gradient(90deg, transparent, ${zone.color}44, transparent)`,
-                    transform: `translate(-50%, -50%) rotate(${index === 0 ? '-35deg' : '35deg'})`,
-                    transformOrigin: index === 0 ? 'top right' : 'top left',
-                    zIndex: -1,
-                    pointerEvents: 'none',
-                }} />
-            )}
-
-            {/* Glow ring behind node */}
-            <motion.div
-                animate={{
-                    boxShadow: hovered && isUnlocked
-                        ? `0 0 40px ${zone.color}AA, 0 0 80px ${zone.color}66, 0 0 120px ${zone.color}33`
-                        : `0 0 20px ${zone.color}66, 0 0 40px ${zone.color}33`,
-                    opacity: hovered && isUnlocked ? 1 : 0.8,
-                }}
-                transition={{ duration: 0.3 }}
-                style={{
-                    position: 'absolute',
-                    top: 10,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 110,
-                    height: 110,
-                    borderRadius: '50%',
-                    pointerEvents: 'none',
-                }}
-            />
-
-            {/* Zone Icon Node */}
-            <motion.div
-                whileHover={isUnlocked ? { scale: 1.15, y: -8 } : {}}
-                whileTap={isUnlocked ? { scale: 0.95 } : {}}
-                style={{
-                    width: 90,
-                    height: 90,
-                    background: `radial-gradient(circle at 40% 35%, ${zone.color}44, ${zone.color}11, var(--bg-secondary))`,
-                    border: `3px solid ${isCompleted ? 'var(--green)' : zone.color}`,
-                    borderRadius: isCompleted ? '16px' : '50%',
-                    boxShadow: isCompleted
-                        ? '0 0 25px #00FF8866, 0 0 50px #00FF8833, inset 0 0 20px #00FF8822'
-                        : `0 0 25px ${zone.color}66, 0 0 50px ${zone.color}33, inset 0 0 20px ${zone.color}22`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 42,
-                    position: 'relative',
-                    transition: 'border-radius 0.3s, border-color 0.3s',
-                    zIndex: 2,
-                    backdropFilter: 'blur(4px)',
-                }}
-                className={isUnlocked && !isCompleted ? 'animate-pulse-neon' : ''}
-            >
-                {zone.icon}
-
-                {/* Completion badge */}
-                {isCompleted && (
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 300, delay: 0.2 }}
-                        style={{
-                            position: 'absolute',
-                            top: -10,
-                            right: -10,
-                            width: 28,
-                            height: 28,
-                            background: 'var(--green)',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 16,
-                            fontWeight: 'bold',
-                            color: 'var(--bg-primary)',
-                            boxShadow: '0 0 15px #00FF88',
-                            border: '2px solid var(--bg-primary)',
-                        }}
-                    >
-                        ✓
-                    </motion.div>
-                )}
-
-                {/* Lock overlay */}
-                {!isUnlocked && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: '50%',
-                            background: 'rgba(0,0,0,0.8)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 32,
-                            backdropFilter: 'blur(4px)',
-                        }}
-                    >
-                        🔒
-                    </div>
-                )}
-            </motion.div>
-
-            {/* Labels Container - perfectly centered */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, zIndex: 2 }}>
+                gap: 6,
+                zIndex: 2,
+                width: 220,
+            }}>
                 {/* Zone Name */}
                 <div
                     style={{
@@ -201,7 +207,7 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
                         textAlign: 'center',
                         textShadow: `0 0 15px ${zone.color}`,
                         lineHeight: 1.4,
-                        letterSpacing: 1.5,
+                        letterSpacing: 2,
                         textTransform: 'uppercase',
                     }}
                 >
@@ -213,10 +219,10 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
                     style={{
                         fontFamily: 'var(--font-mono)',
                         fontSize: 11,
-                        color: 'var(--gray)',
+                        color: 'var(--white)',
                         letterSpacing: 2,
                         textTransform: 'uppercase',
-                        opacity: 0.8,
+                        opacity: 0.9,
                     }}
                 >
                     {zone.npcName}
@@ -229,12 +235,13 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
                         gap: 12,
                         fontFamily: 'var(--font-mono)',
                         fontSize: 11,
-                        color: 'var(--dark-gray)',
+                        color: 'var(--gray)',
                         marginTop: 4,
-                        background: 'rgba(0,0,0,0.5)',
-                        padding: '4px 12px',
-                        borderRadius: 12,
-                        border: '1px solid rgba(255,255,255,0.05)',
+                        background: 'rgba(0,0,0,0.6)',
+                        padding: '4px 14px',
+                        borderRadius: 20,
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)',
                     }}
                 >
                     <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>{zone.xpReward} XP</span>
@@ -249,8 +256,9 @@ function ZoneNode({ zone, index }: { zone: ZoneConfig; index: number }) {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     style={{
                         position: 'absolute',
-                        top: '100%',
-                        marginTop: 15,
+                        top: 150, // Fixed offset below the labels
+                        left: '50%',
+                        transform: 'translateX(-50%)',
                         fontFamily: 'var(--font-mono)',
                         fontSize: 11,
                         color: 'var(--white)',
@@ -536,6 +544,39 @@ export default function VillageMap() {
                     Choose your destiny
                 </p>
             </motion.div>
+
+            {/* ── Connecting paths (animated dashed lines) ── */}
+            <svg
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none',
+                    zIndex: 5,
+                }}
+            >
+                <defs>
+                    <linearGradient id="path-grad-1" x1="0%" y1="100%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#FFB800" stopOpacity="0.5" />
+                        <stop offset="100%" stopColor="#00D4FF" stopOpacity="0.5" />
+                    </linearGradient>
+                    <linearGradient id="path-grad-2" x1="100%" y1="100%" x2="0%" y2="0%">
+                        <stop offset="0%" stopColor="#FF4444" stopOpacity="0.5" />
+                        <stop offset="100%" stopColor="#00D4FF" stopOpacity="0.5" />
+                    </linearGradient>
+                </defs>
+
+                {/* Tavern to Tower */}
+                <line x1="30%" y1="70%" x2="50%" y2="45%" stroke="url(#path-grad-1)" strokeWidth="2" strokeDasharray="8 6">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.5s" repeatCount="indefinite" />
+                </line>
+
+                {/* Forest to Tower */}
+                <line x1="70%" y1="70%" x2="50%" y2="45%" stroke="url(#path-grad-2)" strokeWidth="2" strokeDasharray="8 6">
+                    <animate attributeName="stroke-dashoffset" values="14;0" dur="1.5s" repeatCount="indefinite" />
+                </line>
+            </svg>
 
             {/* ── Zone Nodes ── */}
             {ZONES.map((zone, i) => (
