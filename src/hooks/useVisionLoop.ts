@@ -1,15 +1,16 @@
 // ═══════════════════════════════════════════
 // useVisionLoop — Main Vision Processing Hook
-// Captures webcam frames and runs expression/object detection
+// Captures webcam frames and runs Gemini-powered expression detection
 // ═══════════════════════════════════════════
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DetectionResult, EmotionType } from '../types';
+import { isGeminiConfigured, generateNPCDialogueWithVision } from '../api/geminiService';
 
 interface UseVisionLoopOptions {
     /** Whether the loop is active */
     enabled: boolean;
-    /** Interval between captures in ms (default: 2000) */
+    /** Interval between captures in ms (default: 3000) */
     intervalMs?: number;
     /** Callback when a new detection is available */
     onDetection?: (result: DetectionResult) => void;
@@ -34,23 +35,71 @@ interface UseVisionLoopReturn {
     captureFrame: () => string | null;
 }
 
+// System prompt for Gemini expression detection
+const EXPRESSION_DETECTION_PROMPT =
+    `You are a facial expression analyzer for an RPG game. ` +
+    `Analyze the player's face in the image and respond with ONLY a JSON object (no markdown, no code fences). ` +
+    `Format: {"emotion":"<emotion>","confidence":<0.0-1.0>,"objects":["<visible_objects>"],"gestures":["<gestures>"]}` +
+    `\nValid emotions: neutral, happy, surprised, sad, fearful, angry, disgusted, contempt` +
+    `\nFor objects, list any real-world objects visible (phone, cup, book, etc).` +
+    `\nFor gestures, list any hand gestures visible (thumbs_up, wave, peace_sign, pointing, etc).` +
+    `\nBe accurate. If the person is smiling, say "happy". If they look scared, say "fearful". If neutral face, say "neutral".`;
+
 /**
- * Simple client-side expression detection using heuristics
- * In production, this would use MediaPipe FaceMesh or a dedicated model.
- * For the hackathon, we use random-weighted detection with bias toward
- * realistic distributions, plus Gemini vision for actual analysis.
+ * Use Gemini 2.0 Flash to analyze a webcam frame for expression/objects/gestures.
+ * Falls back to basic heuristic if Gemini is not configured.
  */
-function detectExpressionFromFrame(): DetectionResult {
-    // Weighted random — biased toward neutral/happy for realistic feel
+async function detectExpressionWithGemini(frameBase64: string): Promise<DetectionResult> {
+    if (!isGeminiConfigured()) {
+        return detectExpressionFallback();
+    }
+
+    try {
+        const result = await generateNPCDialogueWithVision({
+            systemPrompt: EXPRESSION_DETECTION_PROMPT,
+            userMessage: 'Analyze this person\'s facial expression, visible objects, and gestures. Respond with JSON only.',
+            imageBase64: frameBase64,
+            maxTokens: 100,
+        });
+
+        // Parse the JSON response
+        const text = result.dialogue.trim();
+        // Strip any markdown code fences that Gemini might add
+        const cleanText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        const parsed = JSON.parse(cleanText);
+
+        const validEmotions: EmotionType[] = ['neutral', 'happy', 'surprised', 'sad', 'fearful', 'angry', 'disgusted', 'contempt'];
+        const emotion: EmotionType = validEmotions.includes(parsed.emotion) ? parsed.emotion : 'neutral';
+
+        return {
+            emotion,
+            confidence: typeof parsed.confidence === 'number' ? Math.min(1, Math.max(0, parsed.confidence)) : 0.7,
+            objects: Array.isArray(parsed.objects)
+                ? parsed.objects.map((label: string) => ({ label, confidence: 0.8 }))
+                : [],
+            gestures: Array.isArray(parsed.gestures) ? parsed.gestures : [],
+            timestamp: new Date(),
+        };
+    } catch (error) {
+        console.warn('[VisionLoop] Gemini detection failed, using fallback:', error);
+        return detectExpressionFallback();
+    }
+}
+
+/**
+ * Basic fallback detection when Gemini is not available.
+ * Uses a slight bias toward neutral to avoid wild reactions.
+ */
+function detectExpressionFallback(): DetectionResult {
     const emotionWeights: [EmotionType, number][] = [
-        ['neutral', 0.35],
+        ['neutral', 0.45],
         ['happy', 0.25],
-        ['surprised', 0.12],
-        ['sad', 0.08],
-        ['fearful', 0.08],
-        ['angry', 0.05],
-        ['disgusted', 0.04],
-        ['contempt', 0.03],
+        ['surprised', 0.10],
+        ['sad', 0.06],
+        ['fearful', 0.06],
+        ['angry', 0.04],
+        ['disgusted', 0.02],
+        ['contempt', 0.02],
     ];
 
     let random = Math.random();
@@ -65,7 +114,7 @@ function detectExpressionFromFrame(): DetectionResult {
 
     return {
         emotion: selectedEmotion,
-        confidence: 0.55 + Math.random() * 0.4,
+        confidence: 0.5 + Math.random() * 0.3,
         objects: [],
         gestures: [],
         timestamp: new Date(),
@@ -74,13 +123,14 @@ function detectExpressionFromFrame(): DetectionResult {
 
 export function useVisionLoop({
     enabled,
-    intervalMs = 2000,
+    intervalMs = 3000,
     onDetection,
 }: UseVisionLoopOptions): UseVisionLoopReturn {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const isProcessingRef = useRef(false);
 
     const [cameraReady, setCameraReady] = useState(false);
     const [latestDetection, setLatestDetection] = useState<DetectionResult | null>(null);
@@ -100,6 +150,11 @@ export function useVisionLoop({
     const startCamera = useCallback(async () => {
         try {
             setError(null);
+            // Don't request camera again if already connected
+            if (streamRef.current && videoRef.current?.srcObject) {
+                setCameraReady(true);
+                return;
+            }
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: { width: 640, height: 480, facingMode: 'user' },
                 audio: false,
@@ -144,7 +199,7 @@ export function useVisionLoop({
         return base64;
     }, [cameraReady]);
 
-    // ── Detection loop ──
+    // ── Detection loop — uses Gemini Vision for real analysis ──
     useEffect(() => {
         if (!enabled || !cameraReady) {
             if (intervalRef.current) {
@@ -154,14 +209,27 @@ export function useVisionLoop({
             return;
         }
 
-        intervalRef.current = setInterval(() => {
-            // Capture frame
-            captureFrame();
+        intervalRef.current = setInterval(async () => {
+            // Prevent overlapping Gemini calls
+            if (isProcessingRef.current) return;
+            isProcessingRef.current = true;
 
-            // Run local expression detection
-            const detection = detectExpressionFromFrame();
-            setLatestDetection(detection);
-            onDetection?.(detection);
+            try {
+                // Capture frame
+                const frame = captureFrame();
+
+                // Run Gemini-powered expression detection
+                const detection = frame
+                    ? await detectExpressionWithGemini(frame)
+                    : detectExpressionFallback();
+
+                setLatestDetection(detection);
+                onDetection?.(detection);
+            } catch (err) {
+                console.error('[VisionLoop] Detection error:', err);
+            } finally {
+                isProcessingRef.current = false;
+            }
         }, intervalMs);
 
         return () => {

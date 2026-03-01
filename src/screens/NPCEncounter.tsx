@@ -357,8 +357,6 @@ export default function NPCEncounter() {
         succeedChallenge, failChallenge, setRiddle, setDetection, resetChallenge,
     } = useChallengeStore.getState();
 
-    const addXP = usePlayerStore((s) => s.addXP);
-    const completeZone = usePlayerStore((s) => s.completeZone);
     const playerName = usePlayerStore((s) => s.name);
     const soundEnabled = usePlayerStore((s) => s.soundEnabled);
 
@@ -470,8 +468,8 @@ export default function NPCEncounter() {
     useEffect(() => {
         if (challengeState === 'success' && zone) {
             stopAmbientMusic();
-            addXP(zone.xpReward);
-            completeZone(zone.id);
+            if (soundEnabled) SoundFX.success();
+            // XP + zone completion happen in RewardScreen to avoid double-awarding
             const t = setTimeout(() => navigateTo('reward'), 2500);
             return () => clearTimeout(t);
         }
@@ -481,7 +479,7 @@ export default function NPCEncounter() {
             const t = setTimeout(() => navigateTo('village-map'), 3000);
             return () => clearTimeout(t);
         }
-    }, [challengeState, zone, addXP, completeZone, navigateTo, soundEnabled]);
+    }, [challengeState, zone, navigateTo, soundEnabled]);
 
     // ── Cleanup ──
     useEffect(() => {
