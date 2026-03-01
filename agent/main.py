@@ -1,22 +1,24 @@
 """
 Vision Quest — NPC Agent Server
 ================================
-Runs Vision AI agents for each NPC zone using the Vision Agents SDK.
-Each NPC (Jester, Sage, Shadow) has its own personality and instructions.
+Runs Vision AI agents for each NPC zone using the Vision Agents SDK
+with Gemini Realtime for real-time video+audio processing.
 
-Usage:
+Usage (automatic via AgentLauncher):
     cd agent
-    uv run python main.py --call-type default --call-id <call_id> --npc <jester|sage|shadow>
+    uv run python main.py run
 
-Or start all agents at once:
-    uv run python main.py serve
+Manual single-NPC mode:
+    cd agent
+    uv run python main.py run --call-type default --call-id <call_id> --npc jester
 """
 
 import os
 import sys
 import asyncio
-import argparse
 from dotenv import load_dotenv
+from vision_agents.core import Agent, AgentLauncher, User, Runner
+from vision_agents.plugins import getstream, gemini
 
 load_dotenv()
 
@@ -73,72 +75,43 @@ NPC_INSTRUCTIONS = {
     ),
 }
 
+# Default NPC if not specified
+DEFAULT_NPC = os.getenv("NPC_ID", "jester")
 
-async def create_agent(npc_id: str = "jester", **kwargs):
-    """Create a Vision Agent configured as a specific NPC."""
-    try:
-        from vision_agents.core import Agent, User
-        from vision_agents.plugins import getstream, gemini
-    except ImportError:
-        print("Error: vision-agents not installed. Run: uv add 'vision-agents[getstream,gemini]'")
-        sys.exit(1)
 
-    instructions = NPC_INSTRUCTIONS.get(npc_id, NPC_INSTRUCTIONS["jester"])
+async def create_agent(npc: str = DEFAULT_NPC, **kwargs) -> Agent:
+    """Create a Vision Agent configured as a specific NPC using Gemini Realtime."""
+    npc_id = npc if npc in NPC_INSTRUCTIONS else DEFAULT_NPC
+    instructions = NPC_INSTRUCTIONS[npc_id]
     npc_name = npc_id.upper() if npc_id != "sage" else "THE SAGE"
 
-    agent = Agent(
+    print(f"🎭 Creating NPC agent: {npc_name}")
+
+    return Agent(
         edge=getstream.Edge(),
         agent_user=User(name=npc_name, id=f"npc-{npc_id}"),
         instructions=instructions,
-        llm=gemini.Realtime(fps=3),  # 3 video frames per second to Gemini
+        llm=gemini.Realtime(
+            model="gemini-2.0-flash",
+            fps=3,  # Send 3 video frames per second to Gemini
+        ),
     )
 
-    return agent
 
-
-async def join_call(agent, call_type: str, call_id: str, **kwargs):
-    """Have the agent join a Stream video call."""
+async def join_call(agent: Agent, call_type: str, call_id: str, **kwargs) -> None:
+    """Have the NPC agent join a Stream video call and interact with the player."""
     call = await agent.create_call(call_type, call_id)
 
-    print(f"🎭 Agent joining call: {call_type}/{call_id}")
+    print(f"🔮 Agent joining call: {call_type}/{call_id}")
 
     async with agent.join(call):
-        # The agent will now see the user's video and hear their audio
-        # Gemini Realtime processes everything and responds
-        await agent.simple_response("Greet the player in character.")
+        # The agent now sees the user's video and hears their audio.
+        # Gemini Realtime processes everything and responds in real-time.
+        await agent.simple_response("Greet the player in character. You just saw them through the Magic Mirror.")
         await agent.finish()
 
 
-async def run_agent(npc_id: str, call_type: str, call_id: str):
-    """Run a single NPC agent."""
-    agent = await create_agent(npc_id)
-    await join_call(agent, call_type, call_id)
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Vision Quest NPC Agent Server")
-    parser.add_argument(
-        "--npc",
-        type=str,
-        default="jester",
-        choices=["jester", "sage", "shadow"],
-        help="Which NPC to run (default: jester)",
-    )
-    parser.add_argument(
-        "--call-type",
-        type=str,
-        default="default",
-        help="Stream call type (default: default)",
-    )
-    parser.add_argument(
-        "--call-id",
-        type=str,
-        required=True,
-        help="Stream call ID to join",
-    )
-
-    args = parser.parse_args()
-
+if __name__ == "__main__":
     # Validate env vars
     required_vars = ["STREAM_API_KEY", "STREAM_API_SECRET", "GOOGLE_API_KEY"]
     missing = [v for v in required_vars if not os.getenv(v)]
@@ -147,13 +120,14 @@ def main():
         print("   Copy agent/.env.example to agent/.env and fill in your keys.")
         sys.exit(1)
 
-    print(f"🎮 Vision Quest Agent Server")
-    print(f"   NPC: {args.npc.upper()}")
-    print(f"   Call: {args.call_type}/{args.call_id}")
+    print(f"🎮 Vision Quest — NPC Agent Server")
+    print(f"   Powered by Vision Agents SDK + Gemini Realtime")
     print()
 
-    asyncio.run(run_agent(args.npc, args.call_type, args.call_id))
-
-
-if __name__ == "__main__":
-    main()
+    # Use the official AgentLauncher + Runner pattern from Vision Agents SDK
+    Runner(
+        AgentLauncher(
+            create_agent=create_agent,
+            join_call=join_call,
+        )
+    ).cli()

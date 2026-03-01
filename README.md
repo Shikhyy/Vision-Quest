@@ -100,8 +100,11 @@ npm run dev
 
 ```bash
 cd agent
-uv run python main.py --npc jester --call-id <call_id_from_browser_console>
+uv sync
+uv run python main.py run
 ```
+
+The agent uses `AgentLauncher` + `Runner` from the Vision Agents SDK. It will automatically listen for incoming calls from the frontend.
 
 > **Note:** The app works without the Python agent! It falls back to direct Gemini API calls for NPC dialogue.
 
