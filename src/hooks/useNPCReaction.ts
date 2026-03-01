@@ -14,7 +14,7 @@ import type { DetectionResult, ZoneId } from '../types';
 
 interface UseNPCReactionReturn {
     /** Process a detection and generate NPC reaction via Gemini */
-    processDetection: (detection: DetectionResult, frame?: string | null, spokenText?: string) => Promise<void>;
+    processDetection: (detection: DetectionResult, frame?: string | null, spokenText?: string, skipDialogueGeneration?: boolean) => Promise<void>;
     /** Whether a Gemini call is in progress */
     isGenerating: boolean;
 }
@@ -84,7 +84,12 @@ export function useNPCReaction(): UseNPCReactionReturn {
     const lastCallRef = useRef<number>(0);
     const MIN_INTERVAL = 3000; // Minimum 3s between Gemini calls
 
-    const processDetection = useCallback(async (detection: DetectionResult, frame?: string | null, spokenText?: string) => {
+    const processDetection = useCallback(async (
+        detection: DetectionResult,
+        frame?: string | null,
+        spokenText?: string,
+        skipDialogueGeneration: boolean = false
+    ) => {
         // Throttle calls
         const now = Date.now();
         if (now - lastCallRef.current < MIN_INTERVAL) return;
@@ -101,107 +106,133 @@ export function useNPCReaction(): UseNPCReactionReturn {
 
         isGeneratingRef.current = true;
         lastCallRef.current = now;
-        recordEmotion(detection.emotion);
 
-        const detectionText = formatDetectionForPrompt(detection);
+        try {
+            recordEmotion(detection.emotion);
+            const detectionText = formatDetectionForPrompt(detection);
 
-        // ── Zone-specific logic ──
-        if (activeZone === 'jester') {
-            const isHappy = isHappyExpression(detection.emotion);
+            // ── Zone-specific logic ──
+            if (activeZone === 'jester') {
+                const isHappy = isHappyExpression(detection.emotion);
 
-            if (isHappy) {
-                updateProgress(12 + Math.random() * 10);
-                setNPCEmotionState(progress > 66 ? 'laughing' : 'amused');
-            } else {
-                updateProgress(-5);
-                setNPCEmotionState('offended');
-            }
+                if (isHappy) {
+                    updateProgress(12 + Math.random() * 10);
+                    setNPCEmotionState(progress > 66 ? 'laughing' : 'amused');
+                } else {
+                    updateProgress(-5);
+                    setNPCEmotionState('offended');
+                }
 
-            if (isGeminiConfigured()) {
-                try {
-                    const prompt = getJesterReactionPrompt(detectionText, progress, playerName);
-                    const userMsg = `The player's current expression is: ${detectionText}.${spokenText ? ` The player says: "${spokenText}"` : ''} React in character as the Jester.`;
+                if (isGeminiConfigured() && !skipDialogueGeneration) {
+                    try {
+                        const prompt = getJesterReactionPrompt(detectionText, progress, playerName);
+                        const userMsg = `The player's current expression is: ${detectionText}.${spokenText ? ` The player says: "${spokenText}"` : ''} React in character as the Jester.`;
 
-                    const result = frame
-                        ? await generateNPCDialogueWithVision({
+                        const result = frame
+                            ? await generateNPCDialogueWithVision({
+                                systemPrompt: prompt,
+                                userMessage: userMsg,
+                                imageBase64: frame,
+                                maxTokens: 100,
+                            })
+                            : await generateNPCDialogue({
+                                systemPrompt: prompt,
+                                userMessage: userMsg,
+                                maxTokens: 100,
+                            });
+                        setNPCDialogue(result.dialogue);
+                    } catch {
+                        setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.jester[isHappy ? 'happy' : 'neutral']));
+                    }
+                } else if (!skipDialogueGeneration) {
+                    setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.jester[isHappy ? 'happy' : 'neutral']));
+                }
+            } else if (activeZone === 'shadow') {
+                const isFear = isFearExpression(detection.emotion);
+
+                if (isFear) {
+                    updateProgress(8 + Math.random() * 7);
+                    setNPCEmotionState('feeding');
+                } else {
+                    updateProgress(-3);
+                    setNPCEmotionState('awakened');
+                }
+
+                if (isGeminiConfigured() && !skipDialogueGeneration) {
+                    try {
+                        const prompt = getShadowReactionPrompt(detectionText, progress, playerName, timer);
+                        const userMsg = `The player's current expression: ${detectionText}.${spokenText ? ` The player whispers: "${spokenText}"` : ''} Whisper your reaction.`;
+
+                        const result = await generateNPCDialogue({
+                            systemPrompt: prompt,
+                            userMessage: userMsg,
+                            maxTokens: 80,
+                        });
+                        setNPCDialogue(result.dialogue);
+                    } catch {
+                        setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.shadow[isFear ? 'fearful' : 'calm']));
+                    }
+                } else if (!skipDialogueGeneration) {
+                    setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.shadow[isFear ? 'fearful' : 'calm']));
+                }
+            } else if (activeZone === 'sage') {
+                setNPCEmotionState('analyzing');
+
+                const currentRiddle = useChallengeStore.getState().currentRiddle;
+
+                if (isGeminiConfigured() && frame && currentRiddle && !skipDialogueGeneration) {
+                    try {
+                        const prompt = getSageReactionPrompt('analyzing via arcane sight', 0.8, currentRiddle);
+                        const userMsg = `Look at this image the player is showing you.${spokenText ? ` The player says: "${spokenText}"` : ''} Identify the object and determine if it satisfies the riddle: "${currentRiddle}". Respond as JSON: {"dialogue": "your response", "correct": true/false}`;
+
+                        const result = await generateNPCDialogueWithVision({
                             systemPrompt: prompt,
                             userMessage: userMsg,
                             imageBase64: frame,
-                            maxTokens: 100,
-                        })
-                        : await generateNPCDialogue({
+                            maxTokens: 150,
+                        });
+                        setNPCDialogue(result.dialogue);
+
+                        if (result.correct) {
+                            setNPCEmotionState('correct');
+                            updateProgress(34); // ~3 riddles to complete
+                        } else {
+                            setNPCEmotionState('wrong');
+                        }
+                    } catch {
+                        setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.sage.analyzing));
+                    }
+                } else if (frame && currentRiddle) {
+                    // If Stream mode is active (skipDialogueGeneration is true), we MUST still evaluate the riddle visually locally!
+                    // Stream Audio agent can't trigger React state updates easily. So we use the local vision model strictly for validation without text extraction.
+                    try {
+                        const prompt = getSageReactionPrompt('analyzing via arcane sight', 0.8, currentRiddle);
+                        const userMsg = `Look at this image. Identify the object and determine if it satisfies the riddle: "${currentRiddle}". Respond ONLY as JSON: {"correct": true/false}`;
+
+                        const result = await generateNPCDialogueWithVision({
                             systemPrompt: prompt,
                             userMessage: userMsg,
-                            maxTokens: 100,
+                            imageBase64: frame,
+                            maxTokens: 20,
                         });
-                    setNPCDialogue(result.dialogue);
-                } catch {
-                    setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.jester[isHappy ? 'happy' : 'neutral']));
-                }
-            } else {
-                setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.jester[isHappy ? 'happy' : 'neutral']));
-            }
-        } else if (activeZone === 'shadow') {
-            const isFear = isFearExpression(detection.emotion);
 
-            if (isFear) {
-                updateProgress(8 + Math.random() * 7);
-                setNPCEmotionState('feeding');
-            } else {
-                updateProgress(-3);
-                setNPCEmotionState('awakened');
-            }
-
-            if (isGeminiConfigured()) {
-                try {
-                    const prompt = getShadowReactionPrompt(detectionText, progress, playerName, timer);
-                    const userMsg = `The player's current expression: ${detectionText}.${spokenText ? ` The player whispers: "${spokenText}"` : ''} Whisper your reaction.`;
-
-                    const result = await generateNPCDialogue({
-                        systemPrompt: prompt,
-                        userMessage: userMsg,
-                        maxTokens: 80,
-                    });
-                    setNPCDialogue(result.dialogue);
-                } catch {
-                    setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.shadow[isFear ? 'fearful' : 'calm']));
-                }
-            } else {
-                setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.shadow[isFear ? 'fearful' : 'calm']));
-            }
-        } else if (activeZone === 'sage') {
-            setNPCEmotionState('analyzing');
-
-            const currentRiddle = useChallengeStore.getState().currentRiddle;
-
-            if (isGeminiConfigured() && frame && currentRiddle) {
-                try {
-                    const prompt = getSageReactionPrompt('analyzing via arcane sight', 0.8, currentRiddle);
-                    const userMsg = `Look at this image the player is showing you.${spokenText ? ` The player says: "${spokenText}"` : ''} Identify the object and determine if it satisfies the riddle: "${currentRiddle}". Respond as JSON: {"dialogue": "your response", "correct": true/false}`;
-
-                    const result = await generateNPCDialogueWithVision({
-                        systemPrompt: prompt,
-                        userMessage: userMsg,
-                        imageBase64: frame,
-                        maxTokens: 150,
-                    });
-                    setNPCDialogue(result.dialogue);
-
-                    if (result.correct) {
-                        setNPCEmotionState('correct');
-                        updateProgress(34); // ~3 riddles to complete
-                    } else {
-                        setNPCEmotionState('wrong');
+                        if (result.correct) {
+                            setNPCEmotionState('correct');
+                            updateProgress(34);
+                        } else {
+                            setNPCEmotionState('wrong');
+                        }
+                    } catch {
+                        console.warn("Local validation failed");
                     }
-                } catch {
+                } else if (!skipDialogueGeneration) {
                     setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.sage.analyzing));
                 }
-            } else {
-                setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.sage.analyzing));
             }
-        }
 
-        isGeneratingRef.current = false;
+        } finally {
+            isGeneratingRef.current = false;
+        }
     }, []);
 
     return {

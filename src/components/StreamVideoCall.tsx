@@ -16,6 +16,7 @@ import {
     StreamVideoClient,
     StreamCall,
     useCallStateHooks,
+    useCall,
 } from '@stream-io/video-react-sdk';
 import type { User } from '@stream-io/video-react-sdk';
 import { fetchStreamToken } from '../api/tokenProvider';
@@ -30,21 +31,26 @@ interface StreamVideoCallProps {
     onDialogue: (text: string) => void;
     onAgentJoined: () => void;
     onError: (error: string) => void;
+    onGameEvent?: (event: { type: string; action: string; npc: string }) => void;
+    videoRef?: React.Ref<HTMLVideoElement>;
 }
 
-// ── Inner component (has access to call state hooks) ──
 function CallUI({
     npcName,
     npcColor,
     onDialogue,
     onAgentJoined,
     onError,
+    onGameEvent,
+    videoRef,
 }: {
     npcName: string;
     npcColor: string;
     onDialogue: (text: string) => void;
     onAgentJoined: () => void;
     onError: (error: string) => void;
+    onGameEvent?: (event: { type: string; action: string; npc: string }) => void;
+    videoRef?: React.Ref<HTMLVideoElement>;
 }) {
     const { useParticipants, useCallCallingState } = useCallStateHooks();
     const participants = useParticipants();
@@ -69,18 +75,37 @@ function CallUI({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [callingState]);
 
-    // Detect agent joining
-    const agentParticipant = participants.find((p) => p.userId.startsWith('npc-'));
+    const call = useCall();
+
+    // Listen for custom game events from the Python agent
+    useEffect(() => {
+        if (!call) return;
+
+        const handleCustomEvent = (event: any) => {
+            if (event.custom?.type === 'game_event' && onGameEvent) {
+                onGameEvent(event.custom as { type: string; action: string; npc: string });
+            }
+        };
+
+        call.on('custom', handleCustomEvent);
+
+        return () => {
+            call.off('custom', handleCustomEvent);
+        };
+    }, [call, onGameEvent]);
+
+    // Find user's own video track
+    const localParticipant = participants.find(
+        (p) => p.isLocalParticipant
+    );
+
+    // Detect agent joining (any participant that isn't the local user)
+    const agentParticipant = participants.find((p) => !p.isLocalParticipant);
     if (agentParticipant && !hasNotifiedRef.current) {
         hasNotifiedRef.current = true;
         onAgentJoined();
         onDialogue(`${npcName} has entered the realm...`);
     }
-
-    // Find user's own video track
-    const localParticipant = participants.find(
-        (p) => !p.userId.startsWith('npc-')
-    );
 
     return (
         <div
@@ -99,16 +124,22 @@ function CallUI({
                         if (el && localParticipant.videoStream) {
                             el.srcObject = localParticipant.videoStream as unknown as MediaStream;
                         }
+                        if (typeof videoRef === 'function') {
+                            videoRef(el);
+                        } else if (videoRef) {
+                            (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = el;
+                        }
                     }}
                     autoPlay
                     playsInline
                     muted
                     style={{
                         position: 'absolute',
-                        width: 1,
-                        height: 1,
-                        opacity: 0,
-                        pointerEvents: 'none'
+                        width: 320,
+                        height: 240,
+                        opacity: 0.01,
+                        pointerEvents: 'none',
+                        zIndex: -10,
                     }}
                 />
             )}
@@ -144,7 +175,7 @@ function CallUI({
             </div>
 
             {/* Agent indicator */}
-            {participants.some((p) => p.userId.startsWith('npc-')) && (
+            {participants.some((p) => !p.isLocalParticipant) && (
                 <div
                     style={{
                         position: 'absolute',
@@ -174,6 +205,8 @@ export default function StreamVideoCall({
     onDialogue,
     onAgentJoined,
     onError,
+    onGameEvent,
+    videoRef,
 }: StreamVideoCallProps) {
     const [client, setClient] = useState<StreamVideoClient | null>(null);
     const [call, setCall] = useState<any>(null);
@@ -304,6 +337,8 @@ export default function StreamVideoCall({
                     onDialogue={onDialogue}
                     onAgentJoined={onAgentJoined}
                     onError={onError}
+                    onGameEvent={onGameEvent}
+                    videoRef={videoRef}
                 />
             </StreamCall>
         </StreamVideo>

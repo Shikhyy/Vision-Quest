@@ -374,17 +374,42 @@ export default function NPCEncounter() {
         setStreamFailed(true);
     }, []);
 
+    const handleGameEvent = useCallback((event: { type: string; action: string; npc: string }) => {
+        console.log('🎮 [GameEvent] Received from backend:', event);
+        if (event.type !== 'game_event') return;
+
+        if (event.action === 'laugh_detected') {
+            useChallengeStore.getState().incrementProgress(20);
+            if (soundEnabled) SoundFX.success(); // Minor chime
+        } else if (event.action === 'fear_detected') {
+            useChallengeStore.getState().incrementProgress(15);
+        } else if (event.action === 'riddle_solved') {
+            const state = useChallengeStore.getState();
+            state.incrementProgress(34);
+
+            if (state.riddleIndex < 2) {
+                // Next riddle
+                state.setRiddle(riddlesRef.current[state.riddleIndex + 1].text, state.riddleIndex + 1);
+                if (soundEnabled) SoundFX.success();
+            } else {
+                // All riddles solved
+                state.succeedChallenge();
+                if (soundEnabled) SoundFX.success();
+            }
+        }
+    }, [soundEnabled]);
+
     // ── Voice Recognition ──
     const { isListening, transcript, isSupported, startListening, stopListening, clearTranscript } = useVoiceRecognition();
 
     // ── Vision Loop ──
     const { processDetection } = useNPCReaction();
     const { videoRef, cameraReady, latestFrame, startCamera } = useVisionLoop({
-        enabled: (!isStreamConfigured() || streamFailed) && started && challengeState === 'active',
+        enabled: started && challengeState === 'active',
         intervalMs: 3000,
         onDetection: (detection: DetectionResult) => {
             setDetection(detection);
-            processDetection(detection, latestFrame, transcript);
+            processDetection(detection, latestFrame, transcript, isStreamConfigured() && !streamFailed);
             if (transcript) clearTranscript();
         },
     });
@@ -426,6 +451,12 @@ export default function NPCEncounter() {
 
         timerRef.current = setInterval(() => {
             const remaining = tickTimer();
+
+            // Shadow fear decay (drains fear by 2% per second if no new fear is detected)
+            if (zone?.id === 'shadow') {
+                useChallengeStore.getState().incrementProgress(-2);
+            }
+
             if (remaining <= 0) {
                 if (zone?.id === 'shadow') {
                     // Shadow: win if fear < 30%
@@ -516,15 +547,17 @@ export default function NPCEncounter() {
             />
 
             {/* Shadow special: pulsing red vignette when feeding */}
-            {zone.id === 'shadow' && npcEmotionState === 'feeding' && (
+            {zone.id === 'shadow' && (
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: [0.1, 0.3, 0.1] }}
+                    animate={{
+                        opacity: npcEmotionState === 'feeding' ? [0.6, 0.8, 0.6] : 0.6,
+                    }}
                     transition={{ repeat: Infinity, duration: 2 }}
                     style={{
                         position: 'absolute',
                         inset: 0,
-                        background: 'radial-gradient(circle at 50% 50%, transparent 30%, #FF000033 100%)',
+                        // The transparent hole shrinks as fear (progress) rises
+                        background: `radial-gradient(circle at 50% 50%, transparent ${Math.max(5, 50 - (useChallengeStore.getState().progress / 2))}%, #000000 100%)`,
                         pointerEvents: 'none',
                         zIndex: 2,
                     }}
@@ -670,6 +703,8 @@ export default function NPCEncounter() {
                                         onDialogue={handleStreamDialogue}
                                         onAgentJoined={handleStreamAgentJoined}
                                         onError={handleStreamError}
+                                        onGameEvent={handleGameEvent}
+                                        videoRef={videoRef}
                                     />
                                 </div>
                             </StreamErrorBoundary>

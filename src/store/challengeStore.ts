@@ -17,6 +17,7 @@ interface ChallengeStoreState {
     // Actions
     startChallenge: (zoneId: ZoneId, duration: number) => void;
     updateProgress: (delta: number) => void;
+    incrementProgress: (delta: number) => void;
     setProgress: (value: number) => void;
     tickTimer: () => number; // returns remaining
     loseLife: () => number; // returns remaining lives
@@ -58,6 +59,14 @@ export const useChallengeStore = create<ChallengeStoreState>((set, get) => ({
         }),
 
     updateProgress: (delta) => {
+        const newProgress = Math.max(0, Math.min(100, get().progress + delta));
+        set({ progress: newProgress });
+        if (newProgress >= 100) {
+            set({ challengeState: 'success' });
+        }
+    },
+
+    incrementProgress: (delta) => {
         const newProgress = Math.max(0, Math.min(100, get().progress + delta));
         set({ progress: newProgress });
         if (newProgress >= 100) {

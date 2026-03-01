@@ -19,6 +19,7 @@ import asyncio
 from dotenv import load_dotenv
 from vision_agents.core import Agent, AgentLauncher, User, Runner
 from vision_agents.plugins import getstream, gemini
+from processors import EmotionProcessor, ObjectDetectionProcessor
 
 load_dotenv()
 
@@ -85,7 +86,11 @@ async def create_agent(npc: str = DEFAULT_NPC, **kwargs) -> Agent:
     instructions = NPC_INSTRUCTIONS[npc_id]
     npc_name = npc_id.upper() if npc_id != "sage" else "THE SAGE"
 
-    print(f"🎭 Creating NPC agent: {npc_name}")
+    processors = []
+    if npc_id == "jester":
+        processors.append(EmotionProcessor(fps=1.0))
+    elif npc_id == "sage":
+        processors.append(ObjectDetectionProcessor(fps=0.5))
 
     return Agent(
         edge=getstream.Edge(),
@@ -95,20 +100,64 @@ async def create_agent(npc: str = DEFAULT_NPC, **kwargs) -> Agent:
             model="gemini-2.5-flash-native-audio-latest",
             fps=3,  # Send 3 video frames per second to Gemini
         ),
+        processors=processors,
     )
 
 
-async def join_call(agent: Agent, call_type: str, call_id: str, **kwargs) -> None:
+async def join_call(agent: Agent, call_type: str, call_id: str, npc_id: str = "jester") -> None:
     """Have the NPC agent join a Stream video call and interact with the player."""
-    # Bypass create_call and get the call directly because the frontend already creates it.
     call = agent.edge.client.video.call(call_type, call_id)
 
-    print(f"🔮 Agent joining call: {call_type}/{call_id}")
+    print(f"🔮 Agent {npc_id} joining call: {call_type}/{call_id}")
+
+    # Listen to Gemini's transcripts to trigger game state events
+    @agent.on("agent_say")
+    async def on_agent_text(text: str):
+        text = text.lower()
+        print(f"[{npc_id.upper()}] 🗣️  {text}")
+        
+        # Jester Challenge: increment laugh meter
+        if npc_id == "jester":
+            if "happy" in text or "smile" in text or "laugh" in text:
+                print("🎯 JESTER Challenge Progress: Laugh detected!")
+                try:
+                    await agent.send_custom_event({
+                        "type": "game_event",
+                        "action": "laugh_detected",
+                        "npc": "jester"
+                    })
+                except Exception as e:
+                    print(f"Failed to send custom event: {e}")
+
+        # Sage Challenge: Object detection riddle solved
+        elif npc_id == "sage":
+            if ("correct" in text or "indeed" in text or "you have found" in text or 
+                "ah, a" in text or "well done" in text):
+                print("🎯 SAGE Challenge Progress: Object recognized!")
+                try:
+                    await agent.send_custom_event({
+                        "type": "game_event",
+                        "action": "riddle_solved",
+                        "npc": "sage"
+                    })
+                except Exception as e:
+                    print(f"Failed to send custom event: {e}")
+
+        # Shadow Challenge: Fear detection
+        elif npc_id == "shadow":
+            if "fear" in text or "scare" in text or "afraid" in text or "dark" in text:
+                print("🎯 SHADOW Challenge Progress: Fear detected!")
+                try:
+                    await agent.send_custom_event({
+                        "type": "game_event",
+                        "action": "fear_detected",
+                        "npc": "shadow"
+                    })
+                except Exception as e:
+                    print(f"Failed to send custom event: {e}")
 
     async with agent.join(call):
-        # The agent now sees the user's video and hears their audio.
-        # Gemini Realtime processes everything and responds in real-time.
-        await agent.simple_response("Greet the player in character. You just saw them through the Magic Mirror.")
+        await agent.simple_response("Greet the player briefly in character. You just saw them through the Magic Mirror.")
         await agent.finish()
 
 
@@ -150,7 +199,7 @@ if __name__ == "__main__":
             print("🚀 [BackgroundTask] Agent created successfully. Joining call...")
             sys.stdout.flush()
             
-            await join_call(agent, "default", call_id)
+            await join_call(agent, "default", call_id, npc_id=npc)
             print("🚀 [BackgroundTask] Call joined successfully.")
             sys.stdout.flush()
             

@@ -185,23 +185,24 @@ export function useVisionLoop({
 
     // ── Capture a single frame as base64 ──
     const captureFrame = useCallback((): string | null => {
-        if (!videoRef.current || !canvasRef.current || !cameraReady) return null;
+        const video = videoRef.current;
+        if (!video || !canvasRef.current || video.readyState < 2) return null;
 
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
 
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
         // Strip the data:image/jpeg;base64, prefix
         const base64 = dataUrl.split(',')[1];
         setLatestFrame(base64);
         return base64;
-    }, [cameraReady]);
+    }, []);
 
     // ── Detection loop — uses Gemini Vision for real analysis ──
     useEffect(() => {
-        if (!enabled || !cameraReady) {
+        if (!enabled) {
             if (intervalRef.current) {
                 clearInterval(intervalRef.current);
                 intervalRef.current = null;
@@ -212,6 +213,9 @@ export function useVisionLoop({
         intervalRef.current = setInterval(async () => {
             // Prevent overlapping Gemini calls
             if (isProcessingRef.current) return;
+            // Ensure video exists and has frames rendering
+            if (!videoRef.current || videoRef.current.readyState < 2) return;
+
             isProcessingRef.current = true;
 
             try {
@@ -238,7 +242,7 @@ export function useVisionLoop({
                 intervalRef.current = null;
             }
         };
-    }, [enabled, cameraReady, intervalMs, captureFrame, onDetection]);
+    }, [enabled, intervalMs, captureFrame, onDetection]);
 
     // ── Cleanup on unmount ──
     useEffect(() => {
