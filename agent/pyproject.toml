@@ -1,0 +1,13 @@
+[project]
+name = "vision-quest-agent"
+version = "0.1.0"
+description = "Vision Quest NPC agents powered by Vision Agents SDK"
+requires-python = ">=3.12"
+dependencies = [
+    "vision-agents[getstream,gemini]",
+    "python-dotenv",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
