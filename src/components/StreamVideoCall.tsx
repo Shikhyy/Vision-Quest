@@ -92,7 +92,7 @@ function CallUI({
                 flexDirection: 'column',
             }}
         >
-            {/* Webcam Feed - Mirror */}
+            {/* Webcam Feed - Captured but hidden for immersion */}
             {localParticipant?.videoStream && (
                 <video
                     ref={(el) => {
@@ -104,10 +104,11 @@ function CallUI({
                     playsInline
                     muted
                     style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        transform: 'scaleX(-1)',
+                        position: 'absolute',
+                        width: 1,
+                        height: 1,
+                        opacity: 0,
+                        pointerEvents: 'none'
                     }}
                 />
             )}
@@ -229,10 +230,21 @@ export default function StreamVideoCall({
                 `Connected to the Magic Mirror. Waiting for ${npcName}...`
             );
 
-            console.log(
-                `[Stream] Call created: ${callIdRef.current}. Start the agent with:\n` +
-                `cd agent && uv run python main.py --npc ${npcId} --call-id ${callIdRef.current}`
-            );
+            // Trigger the Python agent backend to join this call
+            console.log(`[Stream] Call created: ${callIdRef.current}. Triggering backend agent...`);
+            try {
+                // The Vision Agent API uses /sessions to trigger the AgentLauncher action
+                await fetch(`http://127.0.0.1:8000/sessions?npc=${npcId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        call_type: 'default',
+                        call_id: callIdRef.current
+                    })
+                });
+            } catch (err) {
+                console.warn('Backend agent trigger failed. Is the python server running?', err);
+            }
         } catch (error: any) {
             console.error('[Stream] Connection error:', error);
             if (!errorFiredRef.current) {

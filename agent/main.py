@@ -92,7 +92,7 @@ async def create_agent(npc: str = DEFAULT_NPC, **kwargs) -> Agent:
         agent_user=User(name=npc_name, id=f"npc-{npc_id}"),
         instructions=instructions,
         llm=gemini.Realtime(
-            model="gemini-2.0-flash",
+            model="gemini-2.5-flash-native-audio-latest",
             fps=3,  # Send 3 video frames per second to Gemini
         ),
     )
