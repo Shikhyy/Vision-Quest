@@ -100,7 +100,8 @@ async def create_agent(npc: str = DEFAULT_NPC, **kwargs) -> Agent:
 
 async def join_call(agent: Agent, call_type: str, call_id: str, **kwargs) -> None:
     """Have the NPC agent join a Stream video call and interact with the player."""
-    call = await agent.create_call(call_type, call_id)
+    # Bypass create_call and get the call directly because the frontend already creates it.
+    call = agent.edge.client.video.call(call_type, call_id)
 
     print(f"🔮 Agent joining call: {call_type}/{call_id}")
 
@@ -124,10 +125,50 @@ if __name__ == "__main__":
     print(f"   Powered by Vision Agents SDK + Gemini Realtime")
     print()
 
-    # Use the official AgentLauncher + Runner pattern from Vision Agents SDK
-    Runner(
-        AgentLauncher(
-            create_agent=create_agent,
-            join_call=join_call,
-        )
-    ).cli()
+    import uvicorn
+    from fastapi import FastAPI, BackgroundTasks, Request
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app = FastAPI(title="Vision Quest Agent Server")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    async def run_agent_task(npc: str, call_id: str):
+        import traceback
+        import sys
+        
+        try:
+            print(f"🚀 [BackgroundTask] Starting agent for NPC: {npc}, Call: {call_id}")
+            sys.stdout.flush()
+            
+            agent = await create_agent(npc=npc)
+            print("🚀 [BackgroundTask] Agent created successfully. Joining call...")
+            sys.stdout.flush()
+            
+            await join_call(agent, "default", call_id)
+            print("🚀 [BackgroundTask] Call joined successfully.")
+            sys.stdout.flush()
+            
+        except Exception as e:
+            print(f"❌ Error in agent task: {e}")
+            traceback.print_exc(file=sys.stdout)
+            sys.stdout.flush()
+
+    @app.post("/sessions")
+    async def handle_session(request: Request, background_tasks: BackgroundTasks):
+        data = await request.json()
+        call_id = data.get("call_id")
+        npc = request.query_params.get("npc", DEFAULT_NPC)
+        print(f"📥 Received request to start session for NPC: {npc}, call_id: {call_id}")
+        
+        # Trigger agent in the background so the HTTP request returns immediately
+        background_tasks.add_task(run_agent_task, npc, call_id)
+        return {"status": "starting", "call_id": call_id, "npc": npc}
+
+    print("🚀 Starting custom Vision Quest dispatcher on port 8000...")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
