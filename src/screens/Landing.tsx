@@ -34,33 +34,44 @@ function WatchingEye({
             ref={eyeRef}
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay, duration: 0.5, type: 'spring' }}
+            transition={{ delay, duration: 0.6, type: 'spring' }}
             style={{
                 position: 'absolute',
                 left: `${x}%`,
                 top: `${y}%`,
                 width: size,
                 height: size * 0.6,
-                background: '#111',
+                background: 'rgba(8, 8, 12, 0.9)',
                 borderRadius: '50%',
                 border: `2px solid ${color}`,
-                boxShadow: `0 0 15px ${color}66, 0 0 30px ${color}33`,
+                boxShadow: `0 0 20px ${color}44, 0 0 40px ${color}22, inset 0 0 12px ${color}11`,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 overflow: 'hidden',
             }}
         >
+            {/* Iris glow ring */}
+            <div
+                style={{
+                    position: 'absolute',
+                    width: size * 0.55,
+                    height: size * 0.55,
+                    borderRadius: '50%',
+                    border: `1px solid ${color}33`,
+                    pointerEvents: 'none',
+                }}
+            />
             {/* Pupil */}
             <motion.div
                 animate={{ x: mousePos.x, y: mousePos.y }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 style={{
-                    width: size * 0.35,
-                    height: size * 0.35,
+                    width: size * 0.32,
+                    height: size * 0.32,
                     borderRadius: '50%',
-                    background: color,
-                    boxShadow: `0 0 8px ${color}`,
+                    background: `radial-gradient(circle at 35% 35%, ${color}, ${color}88)`,
+                    boxShadow: `0 0 10px ${color}, 0 0 20px ${color}44`,
                 }}
             />
         </motion.div>
@@ -68,22 +79,31 @@ function WatchingEye({
 }
 
 // ── Floating Particles ──
-function FloatingParticle({ delay }: { delay: number }) {
-    const x = Math.random() * 100;
-    const duration = 3 + Math.random() * 4;
+// Pre-generate random particle positions to avoid impure calls during render
+const PARTICLE_COLORS = ['#00D4FF', '#7B2FBE', '#FFB800', '#FF4444', '#00FF88'];
+const PARTICLE_DATA = Array.from({ length: 30 }, (_, i) => ({
+    x: Math.random() * 100,
+    duration: 4 + Math.random() * 6,
+    size: 1 + Math.random() * 3,
+    colorIndex: i % PARTICLE_COLORS.length,
+}));
+
+function FloatingParticle({ delay, index }: { delay: number; index: number }) {
+    const p = PARTICLE_DATA[index % PARTICLE_DATA.length];
+    const color = PARTICLE_COLORS[p.colorIndex];
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: '100vh', x: `${x}vw` }}
-            animate={{ opacity: [0, 0.6, 0], y: '-10vh' }}
-            transition={{ delay, duration, repeat: Infinity, ease: 'linear' }}
+            initial={{ opacity: 0, y: '100vh', x: `${p.x}vw` }}
+            animate={{ opacity: [0, 0.7, 0.3, 0], y: '-10vh' }}
+            transition={{ delay, duration: p.duration, repeat: Infinity, ease: 'linear' }}
             style={{
                 position: 'absolute',
-                width: 3,
-                height: 3,
+                width: p.size,
+                height: p.size,
                 borderRadius: '50%',
-                background: '#00D4FF',
-                boxShadow: '0 0 6px #00D4FF',
+                background: color,
+                boxShadow: `0 0 ${p.size * 3}px ${color}`,
                 pointerEvents: 'none',
             }}
         />
@@ -144,14 +164,14 @@ export default function Landing() {
     }, []);
 
     const eyes = [
-        { x: 15, y: 25, color: '#FFB800', delay: 0.3, size: 48 },   // Jester
-        { x: 75, y: 20, color: '#FFB800', delay: 0.5, size: 36 },   // Jester
-        { x: 50, y: 15, color: '#00D4FF', delay: 0.8, size: 52 },   // Sage
-        { x: 30, y: 60, color: '#00D4FF', delay: 1.0, size: 40 },   // Sage
-        { x: 85, y: 55, color: '#FF4444', delay: 1.3, size: 56 },   // Shadow
-        { x: 10, y: 70, color: '#FF4444', delay: 1.5, size: 44 },   // Shadow
-        { x: 60, y: 75, color: '#7B2FBE', delay: 1.8, size: 38 },   // Purple
-        { x: 40, y: 40, color: '#FF4444', delay: 2.0, size: 32 },   // Shadow small
+        { x: 12, y: 22, color: '#FFB800', delay: 0.3, size: 48 },
+        { x: 78, y: 18, color: '#FFB800', delay: 0.5, size: 36 },
+        { x: 50, y: 12, color: '#00D4FF', delay: 0.8, size: 56 },
+        { x: 28, y: 58, color: '#00D4FF', delay: 1.0, size: 42 },
+        { x: 88, y: 52, color: '#FF4444', delay: 1.3, size: 60 },
+        { x: 8, y: 68, color: '#FF4444', delay: 1.5, size: 44 },
+        { x: 62, y: 72, color: '#7B2FBE', delay: 1.8, size: 38 },
+        { x: 38, y: 38, color: '#FF4444', delay: 2.0, size: 30 },
     ];
 
     return (
@@ -169,9 +189,38 @@ export default function Landing() {
                 overflow: 'hidden',
             }}
         >
+            {/* Ambient breathing light */}
+            <div
+                className="animate-breathe"
+                style={{
+                    position: 'absolute',
+                    width: '60%',
+                    height: '60%',
+                    top: '10%',
+                    left: '20%',
+                    background: 'radial-gradient(circle, #7B2FBE0A 0%, transparent 70%)',
+                    pointerEvents: 'none',
+                    filter: 'blur(40px)',
+                }}
+            />
+            <div
+                className="animate-breathe"
+                style={{
+                    position: 'absolute',
+                    width: '40%',
+                    height: '40%',
+                    bottom: '20%',
+                    right: '10%',
+                    background: 'radial-gradient(circle, #00D4FF08 0%, transparent 70%)',
+                    pointerEvents: 'none',
+                    filter: 'blur(50px)',
+                    animationDelay: '2s',
+                }}
+            />
+
             {/* Floating Particles */}
-            {Array.from({ length: 20 }).map((_, i) => (
-                <FloatingParticle key={i} delay={i * 0.3} />
+            {Array.from({ length: 30 }).map((_, i) => (
+                <FloatingParticle key={i} delay={i * 0.25} index={i} />
             ))}
 
             {/* Watching Eyes */}
@@ -184,7 +233,7 @@ export default function Landing() {
                 style={{
                     position: 'absolute',
                     inset: 0,
-                    background: 'radial-gradient(ellipse at center, transparent 40%, #0A0A0A 100%)',
+                    background: 'radial-gradient(ellipse at center, transparent 35%, #0A0A0A 100%)',
                     pointerEvents: 'none',
                     zIndex: 2,
                 }}
@@ -205,82 +254,101 @@ export default function Landing() {
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
-                            gap: 24,
+                            gap: 20,
                             textAlign: 'center',
                             padding: '0 24px',
                         }}
                     >
-                        {/* Title */}
+                        {/* Title with Glitch Effect */}
                         <motion.h1
                             initial={{ opacity: 0, y: -20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3, duration: 0.6 }}
+                            className="glitch"
+                            data-text="VISION QUEST"
                             style={{
                                 fontFamily: 'var(--font-game)',
-                                fontSize: 'clamp(24px, 5vw, 48px)',
-                                background: 'linear-gradient(135deg, #00D4FF 0%, #7B2FBE 50%, #FFB800 100%)',
+                                fontSize: 'clamp(24px, 5vw, 52px)',
+                                background: 'linear-gradient(135deg, #00D4FF 0%, #7B2FBE 40%, #FFB800 80%, #FF4444 100%)',
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
                                 lineHeight: 1.4,
-                                letterSpacing: 2,
+                                letterSpacing: 4,
+                                filter: 'drop-shadow(0 0 30px rgba(0, 212, 255, 0.15))',
                             }}
                         >
                             VISION QUEST
                         </motion.h1>
 
-                        {/* Subtitle */}
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.6, duration: 0.5 }}
-                            style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: 'clamp(12px, 2vw, 18px)',
-                                color: '#888',
-                                letterSpacing: 4,
-                                textTransform: 'uppercase',
-                            }}
+                        {/* Subtitle with animated separator */}
+                        <motion.div
+                            initial={{ opacity: 0, scaleX: 0 }}
+                            animate={{ opacity: 1, scaleX: 1 }}
+                            transition={{ delay: 0.5, duration: 0.6 }}
+                            style={{ display: 'flex', alignItems: 'center', gap: 12 }}
                         >
-                            The Watching World
-                        </motion.p>
+                            <div style={{ width: 40, height: 1, background: 'linear-gradient(90deg, transparent, var(--gray))' }} />
+                            <p
+                                style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: 'clamp(11px, 1.8vw, 16px)',
+                                    color: '#777',
+                                    letterSpacing: 6,
+                                    textTransform: 'uppercase',
+                                }}
+                            >
+                                The Watching World
+                            </p>
+                            <div style={{ width: 40, height: 1, background: 'linear-gradient(90deg, var(--gray), transparent)' }} />
+                        </motion.div>
 
                         {/* Description */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: 0.9, duration: 0.5 }}
+                            transition={{ delay: 0.8, duration: 0.5 }}
                             style={{
-                                maxWidth: 500,
+                                maxWidth: 520,
                                 display: 'flex',
                                 flexDirection: 'column',
-                                gap: 8,
+                                gap: 6,
+                                marginTop: 4,
                             }}
                         >
-                            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: '#aaa', lineHeight: 1.8 }}>
-                                The NPCs can <span style={{ color: '#00D4FF' }}>see</span> you.
-                            </p>
-                            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: '#aaa', lineHeight: 1.8 }}>
-                                They <span style={{ color: '#FFB800' }}>watch</span> your face, your gestures, your objects.
-                            </p>
-                            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: '#aaa', lineHeight: 1.8 }}>
-                                <span style={{ color: '#7B2FBE' }}>Talk</span> to them using your microphone.
-                            </p>
-                            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: '#aaa', lineHeight: 1.8 }}>
-                                They <span style={{ color: '#FF4444' }}>react</span> to everything you do and say.
-                            </p>
+                            {[
+                                { text: 'see', color: '#00D4FF', prefix: 'The NPCs can', suffix: 'you.' },
+                                { text: 'watch', color: '#FFB800', prefix: 'They', suffix: 'your face, your gestures, your objects.' },
+                                { text: 'Talk', color: '#7B2FBE', prefix: '', suffix: 'to them using your microphone.' },
+                                { text: 'react', color: '#FF4444', prefix: 'They', suffix: 'to everything you do and say.' },
+                            ].map((line, i) => (
+                                <motion.p
+                                    key={i}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: 0.9 + i * 0.15, duration: 0.4 }}
+                                    style={{
+                                        fontFamily: 'var(--font-mono)',
+                                        fontSize: 'clamp(11px, 1.5vw, 14px)',
+                                        color: '#999',
+                                        lineHeight: 2,
+                                    }}
+                                >
+                                    {line.prefix} <span style={{ color: line.color, fontWeight: 'bold', textShadow: `0 0 12px ${line.color}44` }}>{line.text}</span> {line.suffix}
+                                </motion.p>
+                            ))}
                         </motion.div>
 
                         {/* CTA Button */}
                         <motion.button
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ delay: 1.3, duration: 0.4 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.98 }}
+                            transition={{ delay: 1.5, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+                            whileHover={{ scale: 1.05, boxShadow: '0 0 30px #00D4FF44, 0 0 60px #00D4FF22' }}
+                            whileTap={{ scale: 0.97 }}
                             onClick={() => { SoundFX.click(); navigateTo('camera-setup'); }}
                             className="btn-neon"
                             aria-label="Start the mission"
-                            style={{ marginTop: 16 }}
+                            style={{ marginTop: 12, fontSize: 'clamp(10px, 1.5vw, 13px)', padding: '18px 40px' }}
                         >
                             ▶ START MISSION
                         </motion.button>
@@ -288,16 +356,17 @@ export default function Landing() {
                         {/* Footer */}
                         <motion.p
                             initial={{ opacity: 0 }}
-                            animate={{ opacity: 0.4 }}
-                            transition={{ delay: 1.6 }}
+                            animate={{ opacity: 0.35 }}
+                            transition={{ delay: 1.8 }}
                             style={{
                                 fontFamily: 'var(--font-mono)',
                                 fontSize: 10,
-                                color: '#555',
-                                marginTop: 24,
+                                color: '#444',
+                                marginTop: 20,
+                                letterSpacing: 2,
                             }}
                         >
-                            Powered by Vision AI • Camera required • Best on desktop
+                            Powered by Vision AI  •  Camera required  •  Best on desktop
                         </motion.p>
                     </motion.div>
                 )}

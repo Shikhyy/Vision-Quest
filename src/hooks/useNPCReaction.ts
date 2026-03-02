@@ -180,6 +180,15 @@ export function useNPCReaction(): UseNPCReactionReturn {
 
                 const currentRiddle = useChallengeStore.getState().currentRiddle;
 
+                // helper: advance to next riddle after solving one
+                const advanceRiddle = () => {
+                    const state = useChallengeStore.getState();
+                    if (state.riddleIndex < 2 && state.riddles.length > state.riddleIndex + 1) {
+                        state.setRiddle(state.riddles[state.riddleIndex + 1], state.riddleIndex + 1);
+                    }
+                    // progress increment of 34 will auto-succeed at 100%
+                };
+
                 if (isGeminiConfigured() && frame && currentRiddle && !skipDialogueGeneration) {
                     try {
                         const prompt = getSageReactionPrompt('analyzing via arcane sight', 0.8, currentRiddle);
@@ -196,6 +205,7 @@ export function useNPCReaction(): UseNPCReactionReturn {
                         if (result.correct) {
                             setNPCEmotionState('correct');
                             updateProgress(34); // ~3 riddles to complete
+                            advanceRiddle();
                         } else {
                             setNPCEmotionState('wrong');
                         }
@@ -203,8 +213,7 @@ export function useNPCReaction(): UseNPCReactionReturn {
                         setNPCDialogue(pickRandom(FALLBACK_DIALOGUES.sage.analyzing));
                     }
                 } else if (frame && currentRiddle) {
-                    // If Stream mode is active (skipDialogueGeneration is true), we MUST still evaluate the riddle visually locally!
-                    // Stream Audio agent can't trigger React state updates easily. So we use the local vision model strictly for validation without text extraction.
+                    // Stream mode or Gemini-without-dialogue: still evaluate the riddle visually
                     try {
                         const prompt = getSageReactionPrompt('analyzing via arcane sight', 0.8, currentRiddle);
                         const userMsg = `Look at this image. Identify the object and determine if it satisfies the riddle: "${currentRiddle}". Respond ONLY as JSON: {"correct": true/false}`;
@@ -219,6 +228,7 @@ export function useNPCReaction(): UseNPCReactionReturn {
                         if (result.correct) {
                             setNPCEmotionState('correct');
                             updateProgress(34);
+                            advanceRiddle();
                         } else {
                             setNPCEmotionState('wrong');
                         }

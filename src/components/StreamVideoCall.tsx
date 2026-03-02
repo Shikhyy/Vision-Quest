@@ -81,9 +81,11 @@ function CallUI({
     useEffect(() => {
         if (!call) return;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- SDK types use { [key: string]: any } for custom events
         const handleCustomEvent = (event: any) => {
-            if (event.custom?.type === 'game_event' && onGameEvent) {
-                onGameEvent(event.custom as { type: string; action: string; npc: string });
+            const custom = event.custom as { type?: string; action?: string; npc?: string } | undefined;
+            if (custom?.type === 'game_event' && onGameEvent) {
+                onGameEvent(custom as { type: string; action: string; npc: string });
             }
         };
 
@@ -209,7 +211,7 @@ export default function StreamVideoCall({
     videoRef,
 }: StreamVideoCallProps) {
     const [client, setClient] = useState<StreamVideoClient | null>(null);
-    const [call, setCall] = useState<any>(null);
+    const [call, setCall] = useState<ReturnType<StreamVideoClient['call']> | null>(null);
     const [isConnecting, setIsConnecting] = useState(true);
     const errorFiredRef = useRef(false);
 
@@ -278,12 +280,13 @@ export default function StreamVideoCall({
             } catch (err) {
                 console.warn('Backend agent trigger failed. Is the python server running?', err);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
             console.error('[Stream] Connection error:', error);
             if (!errorFiredRef.current) {
                 errorFiredRef.current = true;
                 onError(
-                    `Failed to connect: ${error.message || 'Unknown error'}. Falling back to local mode.`
+                    `Failed to connect: ${message}. Falling back to local mode.`
                 );
             }
         }

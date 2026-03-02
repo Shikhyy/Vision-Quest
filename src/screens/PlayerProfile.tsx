@@ -36,7 +36,10 @@ export default function PlayerProfile() {
                 style={{
                     position: 'fixed',
                     inset: 0,
-                    background: 'radial-gradient(ellipse at 50% 20%, #7B2FBE11, transparent 60%)',
+                    background: `
+                        radial-gradient(ellipse at 50% 20%, #7B2FBE0C, transparent 55%),
+                        radial-gradient(ellipse at 80% 80%, #00D4FF06, transparent 50%)
+                    `,
                     pointerEvents: 'none',
                 }}
             />
@@ -65,32 +68,39 @@ export default function PlayerProfile() {
                     >
                         PLAYER PROFILE
                     </h2>
-                    <button
+                    <motion.button
                         onClick={() => navigateTo('village-map')}
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
                         style={{
                             fontFamily: 'var(--font-mono)',
                             fontSize: 12,
                             color: 'var(--gray)',
-                            background: 'none',
+                            background: 'var(--bg-glass)',
                             border: '1px solid var(--dark-gray)',
-                            padding: '4px 12px',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '6px 14px',
                             cursor: 'pointer',
+                            backdropFilter: 'blur(4px)',
+                            transition: 'color 0.2s ease',
                         }}
                     >
                         ← Back
-                    </button>
+                    </motion.button>
                 </div>
 
                 {/* Player Card */}
                 <div
                     style={{
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-glass)',
                         border: '2px solid var(--purple)',
+                        borderRadius: 'var(--radius-lg)',
                         boxShadow: 'var(--glow-purple)',
                         padding: 24,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: 16,
+                        backdropFilter: 'blur(12px)',
                     }}
                 >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -137,9 +147,11 @@ export default function PlayerProfile() {
                 {/* Zone Completion */}
                 <div
                     style={{
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-glass)',
                         border: '1px solid var(--dark-gray)',
+                        borderRadius: 'var(--radius-lg)',
                         padding: 20,
+                        backdropFilter: 'blur(8px)',
                     }}
                 >
                     <h3 style={{ fontFamily: 'var(--font-game)', fontSize: 10, color: 'var(--white)', marginBottom: 16 }}>
@@ -155,9 +167,11 @@ export default function PlayerProfile() {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 12,
-                                        padding: '8px 12px',
-                                        background: completed ? `${zone.color}11` : 'var(--bg-secondary)',
-                                        border: `1px solid ${completed ? zone.color + '44' : 'var(--dark-gray)'}`,
+                                        padding: '10px 14px',
+                                        background: completed ? `${zone.color}08` : 'var(--bg-secondary)',
+                                        border: `1px solid ${completed ? zone.color + '33' : 'var(--dark-gray)'}`,
+                                        borderRadius: 'var(--radius-md)',
+                                        transition: 'all 0.2s ease',
                                     }}
                                 >
                                     <span style={{ fontSize: 20 }}>{zone.icon}</span>
@@ -181,9 +195,11 @@ export default function PlayerProfile() {
                 {/* Badges */}
                 <div
                     style={{
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-glass)',
                         border: '1px solid var(--dark-gray)',
+                        borderRadius: 'var(--radius-lg)',
                         padding: 20,
+                        backdropFilter: 'blur(8px)',
                     }}
                 >
                     <h3 style={{ fontFamily: 'var(--font-game)', fontSize: 10, color: 'var(--white)', marginBottom: 16 }}>
@@ -208,9 +224,11 @@ export default function PlayerProfile() {
                 {/* Inventory */}
                 <div
                     style={{
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-glass)',
                         border: '1px solid var(--dark-gray)',
+                        borderRadius: 'var(--radius-lg)',
                         padding: 20,
+                        backdropFilter: 'blur(8px)',
                     }}
                 >
                     <h3 style={{ fontFamily: 'var(--font-game)', fontSize: 10, color: 'var(--white)', marginBottom: 16 }}>
@@ -229,9 +247,10 @@ export default function PlayerProfile() {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: 8,
-                                        padding: '8px 12px',
+                                        padding: '10px 14px',
                                         background: 'var(--bg-secondary)',
                                         border: `1px solid ${item.rarity === 'legendary' ? 'var(--gold)' : item.rarity === 'rare' ? 'var(--cyan)' : 'var(--dark-gray)'}`,
+                                        borderRadius: 'var(--radius-md)',
                                         fontSize: 12,
                                     }}
                                     title={item.description}
@@ -247,9 +266,11 @@ export default function PlayerProfile() {
                 {/* Stats */}
                 <div
                     style={{
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-glass)',
                         border: '1px solid var(--dark-gray)',
+                        borderRadius: 'var(--radius-lg)',
                         padding: 20,
+                        backdropFilter: 'blur(8px)',
                     }}
                 >
                     <h3 style={{ fontFamily: 'var(--font-game)', fontSize: 10, color: 'var(--white)', marginBottom: 16 }}>

@@ -78,10 +78,20 @@ export default function CameraSetup() {
                     position: 'absolute',
                     inset: 0,
                     backgroundImage: `
-            linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px)
+            linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px)
           `,
-                    backgroundSize: '32px 32px',
+                    backgroundSize: '40px 40px',
+                    pointerEvents: 'none',
+                }}
+            />
+
+            {/* Ambient glow */}
+            <div
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(ellipse at 50% 30%, #00D4FF0A, transparent 55%)',
                     pointerEvents: 'none',
                 }}
             />
@@ -115,21 +125,22 @@ export default function CameraSetup() {
                 </h2>
 
                 {/* Step Indicator */}
-                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
                     {(['permission', 'preview', 'name', 'ready'] as SetupStep[]).map((s, i) => (
                         <div
                             key={s}
                             style={{
-                                width: 40,
+                                width: 44,
                                 height: 4,
+                                borderRadius: 2,
                                 background:
                                     i <= ['permission', 'preview', 'name', 'ready'].indexOf(step)
                                         ? 'var(--cyan)'
                                         : 'var(--dark-gray)',
-                                transition: 'background 0.3s',
+                                transition: 'all 0.4s var(--ease-smooth)',
                                 boxShadow:
                                     i <= ['permission', 'preview', 'name', 'ready'].indexOf(step)
-                                        ? '0 0 6px #00D4FF44'
+                                        ? '0 0 8px #00D4FF44'
                                         : 'none',
                             }}
                         />
@@ -139,16 +150,18 @@ export default function CameraSetup() {
                 {/* Video Preview (hidden until camera ready) */}
                 <div
                     style={{
-                        width: 320,
-                        height: 240,
-                        background: '#111',
+                        width: 340,
+                        height: 255,
+                        background: '#0A0A0F',
                         border: `2px solid ${cameraReady ? 'var(--cyan)' : 'var(--dark-gray)'}`,
-                        boxShadow: cameraReady ? 'var(--glow-cyan)' : 'none',
+                        borderRadius: 'var(--radius-lg)',
+                        boxShadow: cameraReady ? 'var(--glow-cyan), inset 0 0 30px rgba(0,212,255,0.05)' : 'inset 0 0 30px rgba(0,0,0,0.5)',
                         overflow: 'hidden',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: 'all 0.3s',
+                        transition: 'all 0.4s var(--ease-smooth)',
+                        position: 'relative',
                     }}
                 >
                     <video
@@ -171,10 +184,25 @@ export default function CameraSetup() {
                                 color: 'var(--gray)',
                                 textAlign: 'center',
                                 padding: 20,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 8,
+                                alignItems: 'center',
                             }}
                         >
-                            📷 Camera feed will appear here
+                            <span style={{ fontSize: 32, opacity: 0.5 }}>📷</span>
+                            <span>Camera feed will appear here</span>
                         </div>
+                    )}
+                    {/* Scanline overlay on video */}
+                    {cameraReady && (
+                        <div style={{
+                            position: 'absolute',
+                            inset: 0,
+                            background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px)',
+                            pointerEvents: 'none',
+                            borderRadius: 'var(--radius-lg)',
+                        }} />
                     )}
                 </div>
 
@@ -206,14 +234,16 @@ export default function CameraSetup() {
 
                             <div
                                 style={{
-                                    background: 'var(--bg-tertiary)',
-                                    padding: '12px 16px',
+                                    background: 'var(--bg-glass)',
+                                    padding: '14px 18px',
                                     border: '1px solid var(--dark-gray)',
+                                    borderRadius: 'var(--radius-md)',
                                     fontSize: 11,
                                     fontFamily: 'var(--font-mono)',
                                     color: 'var(--gray)',
-                                    lineHeight: 1.6,
+                                    lineHeight: 1.7,
                                     maxWidth: 380,
+                                    backdropFilter: 'blur(8px)',
                                 }}
                             >
                                 💡 <strong style={{ color: '#aaa' }}>Tips:</strong> Good lighting helps detection accuracy.
@@ -294,16 +324,13 @@ export default function CameraSetup() {
                                 placeholder="Enter your name..."
                                 maxLength={20}
                                 autoFocus
+                                className="input-neon"
                                 style={{
                                     fontFamily: 'var(--font-game)',
                                     fontSize: 12,
-                                    padding: '12px 20px',
-                                    background: 'var(--bg-secondary)',
-                                    border: '2px solid var(--cyan)',
-                                    color: 'var(--white)',
+                                    padding: '14px 22px',
                                     width: 300,
                                     textAlign: 'center',
-                                    outline: 'none',
                                 }}
                                 aria-label="Your name"
                             />

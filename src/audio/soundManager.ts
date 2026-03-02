@@ -8,7 +8,19 @@
 // ── Sound Effect Generator (Web Audio API synth) ──
 // Since we don't have actual audio files, we generate 8-bit sounds programmatically
 
-const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+let audioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext {
+    if (!audioCtx) {
+        const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioCtx = new Ctor();
+    }
+    // Resume if suspended (browser autoplay policy)
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+    }
+    return audioCtx;
+}
 
 function play8BitSound(
     frequency: number,
@@ -16,20 +28,23 @@ function play8BitSound(
     type: OscillatorType = 'square',
     volume: number = 0.15
 ) {
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
+    try {
+    const ctx = getAudioContext();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
     oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+    oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
 
-    gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+    gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
 
     oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    gainNode.connect(ctx.destination);
 
     oscillator.start();
-    oscillator.stop(audioCtx.currentTime + duration);
+    oscillator.stop(ctx.currentTime + duration);
+    } catch { /* audio unavailable */ }
 }
 
 function playArpeggio(frequencies: number[], noteLength: number = 0.08, volume: number = 0.12) {
@@ -170,6 +185,6 @@ export function isSoundEnabled(): boolean {
             const data = JSON.parse(stored);
             return data?.state?.soundEnabled !== false;
         }
-    } catch { }
+    } catch { /* ignore storage errors */ }
     return true;
 }

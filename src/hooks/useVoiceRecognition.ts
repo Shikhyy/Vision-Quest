@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Web Speech API Types
+interface SpeechRecognitionEvent {
+    resultIndex: number;
+    results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent {
+    error: string;
+}
+
 interface SpeechRecognition extends EventTarget {
     continuous: boolean;
     interimResults: boolean;
@@ -8,8 +17,8 @@ interface SpeechRecognition extends EventTarget {
     start(): void;
     stop(): void;
     abort(): void;
-    onerror: (event: any) => void;
-    onresult: (event: any) => void;
+    onerror: (event: SpeechRecognitionErrorEvent) => void;
+    onresult: (event: SpeechRecognitionEvent) => void;
     onend: () => void;
 }
 
@@ -29,19 +38,23 @@ interface UseVoiceRecognitionReturn {
     clearTranscript: () => void;
 }
 
+function getSpeechRecognitionCtor() {
+    return typeof window !== 'undefined'
+        ? window.SpeechRecognition || window.webkitSpeechRecognition
+        : undefined;
+}
+
 export function useVoiceRecognition(): UseVoiceRecognitionReturn {
     const [isListening, setIsListening] = useState(false);
     const [transcript, setTranscript] = useState('');
-    const [isSupported, setIsSupported] = useState(true);
+    const isSupported = !!getSpeechRecognitionCtor();
 
     const recognitionRef = useRef<SpeechRecognition | null>(null);
 
     useEffect(() => {
-        // Initialize SpeechRecognition
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechRecognition = getSpeechRecognitionCtor();
 
         if (!SpeechRecognition) {
-            setIsSupported(false);
             return;
         }
 

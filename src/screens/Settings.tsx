@@ -27,8 +27,8 @@ function ToggleRow({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '14px 0',
-                borderBottom: '1px solid var(--dark-gray)',
+                padding: '16px 0',
+                borderBottom: '1px solid rgba(51,51,51,0.5)',
             }}
         >
             <div>
@@ -132,31 +132,37 @@ export default function Settings() {
                     >
                         SETTINGS
                     </h2>
-                    <button
+                    <motion.button
                         onClick={() => {
                             SoundFX.click();
                             navigateTo('village-map');
                         }}
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
                         style={{
                             fontFamily: 'var(--font-mono)',
                             fontSize: 12,
                             color: 'var(--gray)',
-                            background: 'none',
+                            background: 'var(--bg-glass)',
                             border: '1px solid var(--dark-gray)',
-                            padding: '4px 12px',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '6px 14px',
                             cursor: 'pointer',
+                            backdropFilter: 'blur(4px)',
                         }}
                     >
                         ← Back
-                    </button>
+                    </motion.button>
                 </div>
 
                 {/* Audio & Visual */}
                 <div
                     style={{
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-glass)',
                         border: '1px solid var(--dark-gray)',
-                        padding: '4px 20px 16px',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: '4px 22px 18px',
+                        backdropFilter: 'blur(8px)',
                     }}
                 >
                     <h3 style={{ fontFamily: 'var(--font-game)', fontSize: 8, color: 'var(--gray)', padding: '12px 0', letterSpacing: 2 }}>
@@ -187,9 +193,11 @@ export default function Settings() {
                 {/* Account */}
                 <div
                     style={{
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-glass)',
                         border: '1px solid var(--dark-gray)',
-                        padding: '4px 20px 16px',
+                        borderRadius: 'var(--radius-lg)',
+                        padding: '4px 22px 18px',
+                        backdropFilter: 'blur(8px)',
                     }}
                 >
                     <h3 style={{ fontFamily: 'var(--font-game)', fontSize: 8, color: 'var(--gray)', padding: '12px 0', letterSpacing: 2 }}>
@@ -215,7 +223,7 @@ export default function Settings() {
                     </div>
 
                     <div style={{ padding: '14px 0' }}>
-                        <div style={{ fontFamily: 'var(--font-game)', fontSize: 9, color: 'var(--red)', marginBottom: 8 }}>
+                        <div style={{ fontFamily: 'var(--font-game)', fontSize: 9, color: 'var(--red)', marginBottom: 10 }}>
                             Danger Zone
                         </div>
                         <AnimatePresence>
@@ -230,9 +238,11 @@ export default function Settings() {
                                         color: 'var(--red)',
                                         background: 'none',
                                         border: '1px solid var(--red)',
-                                        padding: '8px 16px',
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: '10px 16px',
                                         cursor: 'pointer',
                                         width: '100%',
+                                        transition: 'background 0.2s ease',
                                     }}
                                 >
                                     🗑️ Reset All Progress
@@ -244,12 +254,13 @@ export default function Settings() {
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
                                     style={{
-                                        background: '#FF444411',
+                                        background: '#FF444408',
                                         border: '1px solid var(--red)',
-                                        padding: 16,
+                                        borderRadius: 'var(--radius-md)',
+                                        padding: 18,
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        gap: 12,
+                                        gap: 14,
                                     }}
                                 >
                                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--white)' }}>
@@ -269,7 +280,8 @@ export default function Settings() {
                                                 color: 'var(--white)',
                                                 background: 'var(--red)',
                                                 border: 'none',
-                                                padding: '8px 12px',
+                                                borderRadius: 'var(--radius-sm)',
+                                                padding: '10px 12px',
                                                 cursor: 'pointer',
                                             }}
                                         >
@@ -284,7 +296,8 @@ export default function Settings() {
                                                 color: 'var(--gray)',
                                                 background: 'var(--bg-secondary)',
                                                 border: '1px solid var(--dark-gray)',
-                                                padding: '8px 12px',
+                                                borderRadius: 'var(--radius-sm)',
+                                                padding: '10px 12px',
                                                 cursor: 'pointer',
                                             }}
                                         >
@@ -300,19 +313,21 @@ export default function Settings() {
                 {/* About */}
                 <div
                     style={{
-                        background: 'var(--bg-card)',
+                        background: 'var(--bg-glass)',
                         border: '1px solid var(--dark-gray)',
-                        padding: 20,
+                        borderRadius: 'var(--radius-lg)',
+                        padding: 22,
                         textAlign: 'center',
+                        backdropFilter: 'blur(8px)',
                     }}
                 >
-                    <div style={{ fontFamily: 'var(--font-game)', fontSize: 10, color: 'var(--gold)', marginBottom: 6 }}>
+                    <div style={{ fontFamily: 'var(--font-game)', fontSize: 10, color: 'var(--gold)', marginBottom: 8 }}>
                         VISION QUEST: THE WATCHING WORLD
                     </div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--gray)' }}>
                         v1.0.0 • Powered by Gemini AI + Vision Agents SDK
                     </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--dark-gray)', marginTop: 4 }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--dark-gray)', marginTop: 6 }}>
                         © 2026 The Watching World
                     </div>
                 </div>

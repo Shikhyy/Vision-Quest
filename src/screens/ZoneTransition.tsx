@@ -61,13 +61,31 @@ export default function ZoneTransition() {
                 overflow: 'hidden',
             }}
         >
-            {/* Zone color ambiance */}
+            {/* Zone color ambiance — layered */}
             <div
                 style={{
                     position: 'absolute',
                     inset: 0,
-                    background: `radial-gradient(ellipse at 50% 80%, ${zone.color}15, transparent 60%)`,
+                    background: `
+                        radial-gradient(ellipse at 50% 80%, ${zone.color}18, transparent 55%),
+                        radial-gradient(ellipse at 50% 20%, ${zone.color}08, transparent 50%)
+                    `,
                     pointerEvents: 'none',
+                }}
+            />
+
+            {/* Atmospheric grid */}
+            <div
+                style={{
+                    position: 'absolute',
+                    inset: 0,
+                    backgroundImage: `
+                        linear-gradient(${zone.color}05 1px, transparent 1px),
+                        linear-gradient(90deg, ${zone.color}05 1px, transparent 1px)
+                    `,
+                    backgroundSize: '48px 48px',
+                    pointerEvents: 'none',
+                    opacity: 0.6,
                 }}
             />
 
@@ -116,8 +134,11 @@ export default function ZoneTransition() {
                 <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    transition={{ type: 'spring', delay: 0.2 }}
-                    style={{ fontSize: 64 }}
+                    transition={{ type: 'spring', stiffness: 200, damping: 12, delay: 0.2 }}
+                    style={{
+                        fontSize: 72,
+                        filter: `drop-shadow(0 0 20px ${zone.color}44)`,
+                    }}
                 >
                     {zone.icon}
                 </motion.div>
@@ -126,10 +147,10 @@ export default function ZoneTransition() {
                 <h2
                     style={{
                         fontFamily: 'var(--font-game)',
-                        fontSize: 16,
+                        fontSize: 18,
                         color: zone.color,
-                        textShadow: `0 0 15px ${zone.color}66`,
-                        letterSpacing: 3,
+                        textShadow: `0 0 18px ${zone.color}55, 0 0 36px ${zone.color}22`,
+                        letterSpacing: 4,
                         textAlign: 'center',
                     }}
                 >
@@ -155,15 +176,20 @@ export default function ZoneTransition() {
 
                 {/* NPC name */}
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: textIndex >= loreWords.length ? 1 : 0 }}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: textIndex >= loreWords.length ? 1 : 0, scale: textIndex >= loreWords.length ? 1 : 0.9 }}
+                    transition={{ duration: 0.4 }}
                     style={{
                         fontFamily: 'var(--font-game)',
                         fontSize: 12,
                         color: zone.color,
-                        border: `1px solid ${zone.color}44`,
-                        padding: '8px 16px',
-                        background: `${zone.color}11`,
+                        border: `1px solid ${zone.color}33`,
+                        borderRadius: 'var(--radius-md)',
+                        padding: '10px 20px',
+                        background: `${zone.color}08`,
+                        backdropFilter: 'blur(8px)',
+                        textShadow: `0 0 10px ${zone.color}44`,
+                        letterSpacing: 2,
                     }}
                 >
                     {zone.npcName} AWAITS...
@@ -173,17 +199,23 @@ export default function ZoneTransition() {
             {/* Skip hint */}
             <motion.div
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 0.3 }}
-                transition={{ delay: 1 }}
+                animate={{ opacity: 0.4 }}
+                transition={{ delay: 1.5 }}
                 onClick={() => navigateTo('npc-encounter')}
                 style={{
                     position: 'absolute',
-                    bottom: 24,
+                    bottom: 28,
                     fontFamily: 'var(--font-mono)',
                     fontSize: 10,
                     color: 'var(--gray)',
                     cursor: 'pointer',
+                    letterSpacing: 1,
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid transparent',
+                    transition: 'border-color 0.2s ease',
                 }}
+                whileHover={{ opacity: 0.8, borderColor: 'var(--dark-gray)' }}
             >
                 Click to skip →
             </motion.div>

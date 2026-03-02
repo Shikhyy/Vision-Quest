@@ -12,8 +12,8 @@ interface UseVisionLoopOptions {
     enabled: boolean;
     /** Interval between captures in ms (default: 3000) */
     intervalMs?: number;
-    /** Callback when a new detection is available */
-    onDetection?: (result: DetectionResult) => void;
+    /** Callback when a new detection is available (frame is the base64 JPEG that was analyzed) */
+    onDetection?: (result: DetectionResult, frame: string | null) => void;
 }
 
 interface UseVisionLoopReturn {
@@ -228,7 +228,7 @@ export function useVisionLoop({
                     : detectExpressionFallback();
 
                 setLatestDetection(detection);
-                onDetection?.(detection);
+                onDetection?.(detection, frame ?? null);
             } catch (err) {
                 console.error('[VisionLoop] Detection error:', err);
             } finally {

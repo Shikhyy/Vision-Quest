@@ -4,7 +4,7 @@
 // Displays a dramatic level-up animation with particle effects
 // when the player gains enough XP to advance.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SoundFX } from '../audio/soundManager';
 
@@ -15,8 +15,20 @@ interface LevelUpOverlayProps {
     onComplete: () => void;
 }
 
+// Pre-generate particle data outside render to avoid impure function calls
+function generateParticles(count: number) {
+    return Array.from({ length: count }, (_, i) => ({
+        angle: (i / count) * Math.PI * 2,
+        dist: 80 + Math.random() * 200,
+        duration: 1 + Math.random() * 0.8,
+        width: 4 + Math.random() * 8,
+        height: 4 + Math.random() * 8,
+    }));
+}
+
 export default function LevelUpOverlay({ prevLevel, newLevel, newTitle, onComplete }: LevelUpOverlayProps) {
     const [visible, setVisible] = useState(true);
+    const particles = useMemo(() => generateParticles(30), []);
 
     useEffect(() => {
         SoundFX.badgeEarned();
@@ -70,31 +82,27 @@ export default function LevelUpOverlay({ prevLevel, newLevel, newTitle, onComple
                     ))}
 
                     {/* Particle burst */}
-                    {Array.from({ length: 20 }).map((_, i) => {
-                        const angle = (i / 20) * Math.PI * 2;
-                        const dist = 100 + Math.random() * 150;
-                        return (
+                    {particles.map((p, i) => (
                             <motion.div
                                 key={`p-${i}`}
                                 initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
                                 animate={{
-                                    x: Math.cos(angle) * dist,
-                                    y: Math.sin(angle) * dist,
+                                    x: Math.cos(p.angle) * p.dist,
+                                    y: Math.sin(p.angle) * p.dist,
                                     opacity: 0,
                                     scale: 0,
                                 }}
-                                transition={{ delay: 0.2, duration: 1.2 + Math.random() * 0.5, ease: 'easeOut' }}
+                                transition={{ delay: 0.2, duration: p.duration, ease: 'easeOut' }}
                                 style={{
                                     position: 'absolute',
-                                    width: 6 + Math.random() * 6,
-                                    height: 6 + Math.random() * 6,
+                                    width: p.width,
+                                    height: p.height,
                                     background: ['var(--gold)', 'var(--cyan)', 'var(--purple)', '#00FF88', 'var(--white)'][i % 5],
                                     borderRadius: i % 2 === 0 ? '50%' : '2px',
                                     pointerEvents: 'none',
                                 }}
                             />
-                        );
-                    })}
+                    ))}
 
                     {/* Level number */}
                     <motion.div
@@ -103,9 +111,9 @@ export default function LevelUpOverlay({ prevLevel, newLevel, newTitle, onComple
                         transition={{ type: 'spring', stiffness: 200, damping: 12, delay: 0.1 }}
                         style={{
                             fontFamily: 'var(--font-game)',
-                            fontSize: 72,
+                            fontSize: 80,
                             color: 'var(--gold)',
-                            textShadow: '0 0 30px #FFB80088, 0 0 60px #FFB80044',
+                            textShadow: '0 0 40px #FFB80088, 0 0 80px #FFB80044, 0 0 120px #FFB80022',
                             lineHeight: 1,
                         }}
                     >
@@ -119,10 +127,11 @@ export default function LevelUpOverlay({ prevLevel, newLevel, newTitle, onComple
                         transition={{ delay: 0.5 }}
                         style={{
                             fontFamily: 'var(--font-game)',
-                            fontSize: 14,
+                            fontSize: 16,
                             color: 'var(--gold)',
-                            letterSpacing: 8,
-                            marginTop: 12,
+                            letterSpacing: 10,
+                            marginTop: 16,
+                            textShadow: '0 0 12px #FFB80044',
                         }}
                     >
                         LEVEL UP
@@ -130,14 +139,18 @@ export default function LevelUpOverlay({ prevLevel, newLevel, newTitle, onComple
 
                     {/* New title */}
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 1 }}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 1, type: 'spring' }}
                         style={{
                             fontFamily: 'var(--font-mono)',
-                            fontSize: 11,
+                            fontSize: 12,
                             color: 'var(--cyan)',
-                            marginTop: 8,
+                            marginTop: 10,
+                            padding: '6px 16px',
+                            border: '1px solid var(--cyan-dim)',
+                            borderRadius: 'var(--radius-md)',
+                            background: 'rgba(0, 212, 255, 0.05)',
                         }}
                     >
                         New Title: {newTitle}

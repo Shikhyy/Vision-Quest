@@ -1,36 +1,38 @@
 // ═══════════════════════════════════════════
-// Token Server — Generates Stream Video tokens for dev
+// Token Server — Generates Stream Video tokens
 // ═══════════════════════════════════════════
-// In development, this generates a user token using the Node SDK.
-// In production, replace this with a real backend endpoint.
-//
-// IMPORTANT: This file is meant to be run server-side or as a Vite plugin.
-// For simplicity in dev, we use the StreamVideoClient's dev token capability.
+// In development, the Vite dev server plugin at /api/token generates tokens.
+// In production, set VITE_STREAM_TOKEN_URL to your backend token endpoint.
 
 /**
- * For development, Stream Video supports guest/anonymous users.
- * This module provides helpers for the dev workflow.
- *
- * Production setup: Create a /api/token endpoint on your backend that uses
- * @stream-io/node-sdk to generate proper JWT tokens.
+ * Resolves the token endpoint URL.
+ * In dev: falls back to the Vite plugin at /api/token
+ * In prod: requires VITE_STREAM_TOKEN_URL to be set
  */
-
-export const TOKEN_PROVIDER_URL = import.meta.env.VITE_STREAM_TOKEN_URL || '';
+function getTokenUrl(): string {
+    const configured = import.meta.env.VITE_STREAM_TOKEN_URL;
+    if (configured) return configured;
+    // In dev mode, the Vite plugin serves /api/token
+    if (import.meta.env.DEV) return '/api/token';
+    return '';
+}
 
 /**
  * Fetch a token from the backend token provider.
- * For dev, if no token URL is configured, return empty string
- * and the StreamVideoClient will use dev tokens.
+ * Returns empty string if no token endpoint is available.
  */
 export async function fetchStreamToken(userId: string): Promise<string> {
-    if (!TOKEN_PROVIDER_URL) {
-        // In dev mode without a token server, return empty.
-        // StreamVideoClient can work with tokenProvider + dev mode.
+    const tokenUrl = getTokenUrl();
+    if (!tokenUrl) {
+        console.warn('[TokenProvider] No token URL configured. Set VITE_STREAM_TOKEN_URL for production.');
         return '';
     }
 
     try {
-        const response = await fetch(`${TOKEN_PROVIDER_URL}?user_id=${userId}`);
+        const response = await fetch(`${tokenUrl}?user_id=${encodeURIComponent(userId)}`);
+        if (!response.ok) {
+            throw new Error(`Token fetch failed: ${response.status} ${response.statusText}`);
+        }
         const data = await response.json();
         return data.token || '';
     } catch (error) {

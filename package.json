@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --host",
+    "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
     "@google/genai": "^1.43.0",
@@ -15,7 +16,6 @@
     "@stream-io/video-react-sdk": "^1.33.0",
     "@tailwindcss/vite": "^4.2.1",
     "framer-motion": "^12.34.3",
-    "howler": "^2.2.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.2.1",
@@ -23,7 +23,6 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/howler": "^2.2.12",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

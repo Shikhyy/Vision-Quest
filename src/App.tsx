@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useGameStore } from './store/gameStore';
 import { usePlayerStore } from './store/playerStore';
@@ -31,10 +31,10 @@ function ScreenRouter() {
     <AnimatePresence mode="wait">
       <motion.div
         key={currentScreen}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 1.02 }}
+        transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
         style={{ width: '100%', height: '100%' }}
       >
         {screens[currentScreen] || <Landing />}
@@ -52,7 +52,7 @@ export default function App() {
   const title = usePlayerStore((s) => s.title);
 
   // Track level for level-up detection
-  const [prevLevel, setPrevLevel] = useState(level);
+  const prevLevelRef = useRef(level);
   const [levelUpData, setLevelUpData] = useState<{
     prevLevel: number;
     newLevel: number;
@@ -60,11 +60,12 @@ export default function App() {
   } | null>(null);
 
   useEffect(() => {
-    if (level > prevLevel && prevLevel > 0) {
-      setLevelUpData({ prevLevel, newLevel: level, newTitle: title });
+    const prev = prevLevelRef.current;
+    if (level > prev && prev > 0) {
+      setLevelUpData({ prevLevel: prev, newLevel: level, newTitle: title });
     }
-    setPrevLevel(level);
-  }, [level, prevLevel, title]);
+    prevLevelRef.current = level;
+  }, [level, title]);
 
   // ── Keyboard shortcuts ──
   const handleKeyDown = useCallback(
@@ -96,6 +97,8 @@ export default function App() {
   return (
     <div className="game-viewport game-cursor">
       <ScreenRouter />
+      {/* Noise texture overlay */}
+      <div className="noise-overlay" />
       {/* CRT Scanline Overlay */}
       {showCRT && <div className="crt-overlay" />}
       {/* Level Up Celebration */}

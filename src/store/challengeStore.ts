@@ -13,6 +13,7 @@ interface ChallengeStoreState {
     lastApiCall: Date | null;
     currentRiddle: string | null;
     riddleIndex: number;
+    riddles: string[]; // all riddle texts for current sage challenge
 
     // Actions
     startChallenge: (zoneId: ZoneId, duration: number) => void;
@@ -27,6 +28,7 @@ interface ChallengeStoreState {
     succeedChallenge: () => void;
     failChallenge: () => void;
     setRiddle: (riddle: string, index: number) => void;
+    setRiddles: (riddles: string[]) => void;
     resetChallenge: () => void;
 }
 
@@ -42,6 +44,7 @@ export const useChallengeStore = create<ChallengeStoreState>((set, get) => ({
     lastApiCall: null,
     currentRiddle: null,
     riddleIndex: 0,
+    riddles: [],
 
     startChallenge: (zoneId, duration) =>
         set({
@@ -56,6 +59,7 @@ export const useChallengeStore = create<ChallengeStoreState>((set, get) => ({
             lastApiCall: null,
             currentRiddle: null,
             riddleIndex: 0,
+            riddles: [],
         }),
 
     updateProgress: (delta) => {
@@ -112,6 +116,8 @@ export const useChallengeStore = create<ChallengeStoreState>((set, get) => ({
 
     setRiddle: (riddle, index) => set({ currentRiddle: riddle, riddleIndex: index }),
 
+    setRiddles: (riddles) => set({ riddles }),
+
     resetChallenge: () =>
         set({
             activeZone: null,
@@ -125,5 +131,6 @@ export const useChallengeStore = create<ChallengeStoreState>((set, get) => ({
             lastApiCall: null,
             currentRiddle: null,
             riddleIndex: 0,
+            riddles: [],
         }),
 }));
